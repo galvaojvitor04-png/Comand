@@ -1,0 +1,329 @@
+import { useState } from 'react';
+import { Plus, Search, Pencil, XCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
+import type { Order, OrderStatus, RestaurantState } from '../types.ts';
+import { formatCurrency, formatElapsed, formatTimeShort, getElapsedMinutes } from '../utils/format.ts';
+
+interface OrdersViewProps {
+  state: RestaurantState;
+  nowMs: number;
+  onNewOrder: () => void;
+  onEditOrder: (order: Order) => void;
+  onUpdateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  onAssignTable: (orderId: string, tableId: string | null) => Promise<void>;
+}
+
+type OrderFilter = 'ativos' | 'todos' | OrderStatus;
+
+const STATUS_TABS: Array<{ value: OrderFilter; label: string }> = [
+  { value: 'ativos', label: 'Em Aberto' },
+  { value: 'pendente', label: 'Na Fila' },
+  { value: 'preparo', label: 'Em Preparo' },
+  { value: 'pronto', label: 'Prontos' },
+  { value: 'entregue', label: 'Entregues' },
+  { value: 'cancelado', label: 'Cancelados' },
+  { value: 'todos', label: 'Todos' },
+];
+
+const STATUS_META: Record<OrderStatus, { label: string; tone: string }> = {
+  pendente: { label: 'Na Fila', tone: 'text-amber-700' },
+  preparo: { label: 'Em Preparo', tone: 'text-teal-700' },
+  pronto: { label: 'Pronto p/ Servir', tone: 'text-emerald-700' },
+  entregue: { label: 'Entregue', tone: 'text-slate-500' },
+  cancelado: { label: 'Cancelado', tone: 'text-red-600' },
+};
+
+export function OrdersView({
+  state,
+  nowMs,
+  onNewOrder,
+  onEditOrder,
+  onUpdateOrderStatus,
+  onAssignTable,
+}: OrdersViewProps) {
+  const [filter, setFilter] = useState<OrderFilter>('ativos');
+  const [search, setSearch] = useState('');
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const filtered = state.orders.filter((order) => {
+    if (filter === 'ativos') {
+      if (order.status === 'cancelado' || order.paid) return false;
+    } else if (filter !== 'todos' && order.status !== filter) {
+      return false;
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchItems = order.items.some((it) => it.name.toLowerCase().includes(q));
+      return (
+        order.code.toLowerCase().includes(q) ||
+        order.tableLabel.toLowerCase().includes(q) ||
+        order.waiter.toLowerCase().includes(q) ||
+        matchItems
+      );
+    }
+    return true;
+  });
+
+  const activeTotal = state.orders
+    .filter((o) => !o.paid && o.status !== 'cancelado')
+    .reduce(
+      (sum, o) => sum + o.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0),
+      0,
+    );
+
+  const handleCancel = async (orderId: string) => {
+    setBusyId(orderId);
+    try {
+      await onUpdateOrderStatus(orderId, 'cancelado');
+      setConfirmCancelId(null);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Toolbar */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setFilter(tab.value)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                filter === tab.value
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar comanda, mesa ou prato..."
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={onNewOrder}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Registrar Pedido
+          </button>
+        </div>
+      </div>
+
+      {/* Orders Table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-6 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <span>{filtered.length} pedidos exibidos</span>
+          <span className="font-mono tabular-nums">
+            Volume em aberto: <strong className="text-slate-900">{formatCurrency(activeTotal)}</strong>
+          </span>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="p-14 text-center">
+            <ClipboardList className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="mt-3 text-sm font-medium text-slate-800">
+              Nenhum pedido encontrado para este filtro.
+            </p>
+            <button
+              type="button"
+              onClick={onNewOrder}
+              className="mt-3 text-xs font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
+            >
+              Registrar novo pedido
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-medium text-slate-500">
+                  <th className="py-3 pl-6 pr-3">Comanda</th>
+                  <th className="py-3 px-3">Mesa Associada</th>
+                  <th className="py-3 px-3">Itens & Observações</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3 text-right">Total</th>
+                  <th className="py-3 pl-3 pr-6 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {filtered.map((order) => {
+                  const total = order.items.reduce(
+                    (sum, it) => sum + it.unitPrice * it.quantity,
+                    0,
+                  );
+                  const statusMeta = STATUS_META[order.status];
+                  const elapsed = getElapsedMinutes(order.createdAt, nowMs);
+                  const canEdit = !order.paid && order.status !== 'cancelado';
+
+                  return (
+                    <tr key={order.id} className="hover:bg-slate-50/80 transition-colors align-top">
+                      <td className="py-4 pl-6 pr-3 whitespace-nowrap">
+                        <div className="font-mono text-xs font-semibold text-slate-900 tabular-nums">
+                          {order.code}
+                        </div>
+                        <div className="text-xs text-slate-500 font-mono tabular-nums mt-0.5">
+                          {formatTimeShort(order.createdAt)} · {formatElapsed(elapsed)}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {order.origin} · {order.waiter}
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-3 whitespace-nowrap">
+                        {canEdit ? (
+                          <select
+                            aria-label={`Associar mesa ao pedido ${order.code}`}
+                            value={order.tableId || ''}
+                            onChange={(e) =>
+                              onAssignTable(order.id, e.target.value || null)
+                            }
+                            className="px-2.5 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                          >
+                            <option value="">Sem mesa (Balcão)</option>
+                            {state.tables.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.label} ({t.zone})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-700">
+                            {order.tableLabel}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-3 max-w-md">
+                        <ul className="space-y-1">
+                          {order.items.map((item) => (
+                            <li key={item.id} className="text-xs text-slate-800">
+                              <span className="font-mono font-semibold text-slate-900 tabular-nums mr-1.5">
+                                {item.quantity}×
+                              </span>
+                              <span>{item.name}</span>
+                              {item.notes && (
+                                <span className="text-amber-700 ml-1.5">
+                                  ({item.notes})
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+
+                      <td className="py-4 px-3 whitespace-nowrap">
+                        <div className={`text-xs font-semibold ${statusMeta.tone}`}>
+                          {statusMeta.label}
+                          {order.paid && ' · Pago'}
+                        </div>
+                        {canEdit && (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            {order.status === 'pendente' && (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateOrderStatus(order.id, 'preparo')}
+                                className="text-[11px] font-medium text-slate-600 hover:text-teal-700 underline underline-offset-2"
+                              >
+                                Enviar p/ preparo
+                              </button>
+                            )}
+                            {order.status === 'preparo' && (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateOrderStatus(order.id, 'pronto')}
+                                className="text-[11px] font-medium text-slate-600 hover:text-emerald-700 underline underline-offset-2"
+                              >
+                                Marcar pronto
+                              </button>
+                            )}
+                            {order.status === 'pronto' && (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateOrderStatus(order.id, 'entregue')}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-800 underline underline-offset-2"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Marcar entregue
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-3 text-right font-mono text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                        {formatCurrency(total)}
+                      </td>
+
+                      <td className="py-4 pl-3 pr-6 text-right whitespace-nowrap">
+                        {canEdit ? (
+                          confirmCancelId === order.id ? (
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={busyId === order.id}
+                                onClick={() => handleCancel(order.id)}
+                                className="px-2.5 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+                              >
+                                Confirmar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmCancelId(null)}
+                                className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900"
+                              >
+                                Voltar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => onEditOrder(order)}
+                                title="Editar pedido"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmCancelId(order.id)}
+                                title="Cancelar pedido"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                Cancelar
+                              </button>
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
