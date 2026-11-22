@@ -4,6 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type {
   AccessLogEntry,
+  CashMovementType,
+  CashRegisterMovement,
+  CashRegisterSession,
+  CashRegisterState,
   InventoryItem,
   ManagerProfile,
   MenuItem,
@@ -38,390 +42,98 @@ function todayDateStr(): string {
 }
 
 function createSeedState(): RestaurantState {
-  const tables: RestaurantTable[] = [
-    { id: 't1', number: 1, label: 'Mesa 01', zone: 'Salão Principal', seats: 2, status: 'ocupada', guests: 2, waiter: 'Rafael Souza', seatedAt: minutesAgo(38) },
-    { id: 't2', number: 2, label: 'Mesa 02', zone: 'Salão Principal', seats: 4, status: 'ocupada', guests: 4, waiter: 'Camila Rocha', seatedAt: minutesAgo(21) },
-    { id: 't3', number: 3, label: 'Mesa 03', zone: 'Salão Principal', seats: 4, status: 'livre', guests: 0, waiter: '', seatedAt: null },
-    { id: 't4', number: 4, label: 'Mesa 04', zone: 'Salão Principal', seats: 6, status: 'ocupada', guests: 5, waiter: 'Rafael Souza', seatedAt: minutesAgo(54) },
-    { id: 't5', number: 5, label: 'Mesa 05', zone: 'Salão Principal', seats: 4, status: 'reservada', guests: 0, waiter: 'Camila Rocha', seatedAt: null },
-    { id: 't6', number: 6, label: 'Mesa 06', zone: 'Salão Principal', seats: 2, status: 'limpeza', guests: 0, waiter: '', seatedAt: null },
-    { id: 't7', number: 7, label: 'Mesa 07', zone: 'Terraço', seats: 4, status: 'ocupada', guests: 3, waiter: 'Bruno Lima', seatedAt: minutesAgo(14) },
-    { id: 't8', number: 8, label: 'Mesa 08', zone: 'Terraço', seats: 6, status: 'livre', guests: 0, waiter: '', seatedAt: null },
-    { id: 't9', number: 9, label: 'Mesa 09', zone: 'Terraço', seats: 4, status: 'reservada', guests: 0, waiter: 'Bruno Lima', seatedAt: null },
-    { id: 't10', number: 10, label: 'Mesa 10', zone: 'Terraço', seats: 2, status: 'livre', guests: 0, waiter: '', seatedAt: null },
-    { id: 't11', number: 11, label: 'Balcão A', zone: 'Balcão', seats: 2, status: 'ocupada', guests: 1, waiter: 'Carla Mendes', seatedAt: minutesAgo(9) },
-    { id: 't12', number: 12, label: 'Balcão B', zone: 'Balcão', seats: 2, status: 'livre', guests: 0, waiter: '', seatedAt: null },
-  ];
-
-  const menu: MenuItem[] = [
-    {
-      id: 'm1',
-      sku: 'ENT-01',
-      name: 'Burrata com Tomate Confit e Pesto',
-      description: 'Burrata cremosa de búfala servida com tomates confitados no alecrim, pesto de manjericão e pão de fermentação natural.',
-      category: 'Entradas',
-      price: 64.0,
-      prepTimeMin: 10,
-      available: true,
-      dietary: 'Vegetariano',
-    },
-    {
-      id: 'm2',
-      sku: 'ENT-02',
-      name: 'Tartar de Atum com Gergelim',
-      description: 'Atum fresco picado na ponta da faca, emulsão cítrica de ponzu, abacate e crocantes de mandioca.',
-      category: 'Entradas',
-      price: 72.0,
-      prepTimeMin: 12,
-      available: true,
-      dietary: 'Sem glúten',
-    },
-    {
-      id: 'm3',
-      sku: 'ENT-03',
-      name: 'Croqueta de Costela Defumada',
-      description: 'Porção com 4 unidades de croqueta cremosa de costela bovina 12h acompanhada de aioli de pimenta biquinho.',
-      category: 'Entradas',
-      price: 48.0,
-      prepTimeMin: 9,
-      available: true,
-    },
-    {
-      id: 'm4',
-      sku: 'PRI-01',
-      name: 'Bife Ancho na Brasa',
-      description: 'Corte Angus de 340g grelhado no carvão, acompanhado de purê rústico de batata asterix, chimichurri e alho assado.',
-      category: 'Principais',
-      price: 138.0,
-      prepTimeMin: 22,
-      available: true,
-      dietary: 'Sem glúten',
-    },
-    {
-      id: 'm5',
-      sku: 'PRI-02',
-      name: 'Risoto de Funghi Porcini',
-      description: 'Arroz arbóreo ao caldo artesanal de cogumelos secos, funghi porcini salteado, grana padano 18 meses e azeite trufado.',
-      category: 'Principais',
-      price: 96.0,
-      prepTimeMin: 20,
-      available: true,
-      dietary: 'Vegetariano',
-    },
-    {
-      id: 'm6',
-      sku: 'PRI-03',
-      name: 'Salmão Grelhado com Aspargos',
-      description: 'Posta de salmão com pele crocante, aspargos grelhados na manteiga de garrafa, emulsão de limão-siciliano e alcaparras.',
-      category: 'Principais',
-      price: 118.0,
-      prepTimeMin: 18,
-      available: true,
-      dietary: 'Sem glúten',
-    },
-    {
-      id: 'm7',
-      sku: 'PRI-04',
-      name: 'Tagliatelle ao Ragú de Ossobuco',
-      description: 'Massa fresca artesanal envolvida em ragú lento de ossobuco de vitela, gremolata cítrica e queijo pecorino.',
-      category: 'Principais',
-      price: 94.0,
-      prepTimeMin: 16,
-      available: true,
-    },
-    {
-      id: 'm8',
-      sku: 'PRI-05',
-      name: 'Nhoque de Mandioquinha e Castanha',
-      description: 'Nhoque dourado na manteiga noisette com cogumelos eryngui, redução de vinho branco e castanha-do-pará tostada.',
-      category: 'Principais',
-      price: 86.0,
-      prepTimeMin: 15,
-      available: false,
-      dietary: 'Vegano',
-    },
-    {
-      id: 'm9',
-      sku: 'SOB-01',
-      name: 'Tiramisù Clássico da Casa',
-      description: 'Biscoito savoiardi embebido em espresso de torra média, creme leve de mascarpone e cacau belga 70%.',
-      category: 'Sobremesas',
-      price: 42.0,
-      prepTimeMin: 6,
-      available: true,
-      dietary: 'Vegetariano',
-    },
-    {
-      id: 'm10',
-      sku: 'SOB-02',
-      name: 'Torta Basca de Baunilha',
-      description: 'Cheesecake assado em alta temperatura com centro cremoso, fava de baunilha natural e calda de frutas vermelhas.',
-      category: 'Sobremesas',
-      price: 44.0,
-      prepTimeMin: 5,
-      available: true,
-      dietary: 'Vegetariano',
-    },
-    {
-      id: 'm11',
-      sku: 'BEB-01',
-      name: 'Negroni Defumado em Carvalho',
-      description: 'Gin seco, Campari e vermute tinto envelhecidos em barril de carvalho com casca de laranja-baía.',
-      category: 'Bebidas',
-      price: 46.0,
-      prepTimeMin: 4,
-      available: true,
-    },
-    {
-      id: 'm12',
-      sku: 'BEB-02',
-      name: 'Soda Artesanal de Caju e Gengibre',
-      description: 'Xarope artesanal de caju fresco, infusão de gengibre picante, água gaseificada e ramo de hortelã.',
-      category: 'Bebidas',
-      price: 22.0,
-      prepTimeMin: 3,
-      available: true,
-      dietary: 'Sem álcool',
-    },
-    {
-      id: 'm13',
-      sku: 'BEB-03',
-      name: 'Vinho Malbec Reserva (Taça 150ml)',
-      description: 'Mendoza, Argentina · Notas de ameixa madura, tabaco e taninos macios.',
-      category: 'Bebidas',
-      price: 54.0,
-      prepTimeMin: 2,
-      available: true,
-    },
-    {
-      id: 'm14',
-      sku: 'BEB-04',
-      name: 'Água Mineral com Gás 500ml',
-      description: 'Garrafa de vidro 500ml servida com rodela de limão-taiti.',
-      category: 'Bebidas',
-      price: 12.0,
-      prepTimeMin: 1,
-      available: true,
-      dietary: 'Sem álcool',
-    },
-  ];
-
-  const orders: Order[] = [
-    {
-      id: 'o101',
-      code: '#1041',
-      tableId: 't1',
-      tableLabel: 'Mesa 01',
-      origin: 'Salão',
-      waiter: 'Rafael Souza',
-      status: 'entregue',
-      createdAt: minutesAgo(34),
-      updatedAt: minutesAgo(16),
-      paid: false,
-      items: [
-        { id: 'oi1', menuItemId: 'm1', name: 'Burrata com Tomate Confit e Pesto', quantity: 1, unitPrice: 64.0 },
-        { id: 'oi2', menuItemId: 'm13', name: 'Vinho Malbec Reserva (Taça 150ml)', quantity: 2, unitPrice: 54.0 },
-      ],
-    },
-    {
-      id: 'o102',
-      code: '#1042',
-      tableId: 't4',
-      tableLabel: 'Mesa 04',
-      origin: 'Salão',
-      waiter: 'Rafael Souza',
-      status: 'preparo',
-      createdAt: minutesAgo(27),
-      updatedAt: minutesAgo(19),
-      paid: false,
-      items: [
-        { id: 'oi3', menuItemId: 'm4', name: 'Bife Ancho na Brasa', quantity: 2, unitPrice: 138.0, notes: '1 Ao ponto, 1 Mal passado' },
-        { id: 'oi4', menuItemId: 'm5', name: 'Risoto de Funghi Porcini', quantity: 2, unitPrice: 96.0 },
-        { id: 'oi5', menuItemId: 'm6', name: 'Salmão Grelhado com Aspargos', quantity: 1, unitPrice: 118.0 },
-      ],
-    },
-    {
-      id: 'o103',
-      code: '#1043',
-      tableId: 't2',
-      tableLabel: 'Mesa 02',
-      origin: 'Salão',
-      waiter: 'Camila Rocha',
-      status: 'pronto',
-      createdAt: minutesAgo(17),
-      updatedAt: minutesAgo(2),
-      paid: false,
-      items: [
-        { id: 'oi6', menuItemId: 'm3', name: 'Croqueta de Costela Defumada', quantity: 2, unitPrice: 48.0 },
-        { id: 'oi7', menuItemId: 'm11', name: 'Negroni Defumado em Carvalho', quantity: 2, unitPrice: 46.0 },
-      ],
-    },
-    {
-      id: 'o104',
-      code: '#1044',
-      tableId: 't7',
-      tableLabel: 'Mesa 07',
-      origin: 'Salão',
-      waiter: 'Bruno Lima',
-      status: 'pendente',
-      createdAt: minutesAgo(6),
-      updatedAt: minutesAgo(6),
-      paid: false,
-      items: [
-        { id: 'oi8', menuItemId: 'm2', name: 'Tartar de Atum com Gergelim', quantity: 1, unitPrice: 72.0 },
-        { id: 'oi9', menuItemId: 'm7', name: 'Tagliatelle ao Ragú de Ossobuco', quantity: 2, unitPrice: 94.0, notes: 'Sem pimenta' },
-        { id: 'oi10', menuItemId: 'm12', name: 'Soda Artesanal de Caju e Gengibre', quantity: 3, unitPrice: 22.0 },
-      ],
-    },
-    {
-      id: 'o105',
-      code: '#1045',
-      tableId: 't11',
-      tableLabel: 'Balcão A',
-      origin: 'Balcão',
-      waiter: 'Carla Mendes',
-      status: 'preparo',
-      createdAt: minutesAgo(8),
-      updatedAt: minutesAgo(5),
-      paid: false,
-      items: [
-        { id: 'oi11', menuItemId: 'm5', name: 'Risoto de Funghi Porcini', quantity: 1, unitPrice: 96.0 },
-        { id: 'oi12', menuItemId: 'm14', name: 'Água Mineral com Gás 500ml', quantity: 1, unitPrice: 12.0 },
-      ],
-    },
-    {
-      id: 'o106',
-      code: '#1046',
-      tableId: null,
-      tableLabel: 'Aguardando Mesa',
-      origin: 'Balcão',
-      waiter: 'Camila Rocha',
-      status: 'pendente',
-      createdAt: minutesAgo(4),
-      updatedAt: minutesAgo(4),
-      paid: false,
-      items: [
-        { id: 'oi13', menuItemId: 'm1', name: 'Burrata com Tomate Confit e Pesto', quantity: 1, unitPrice: 64.0, notes: 'Pão extra à parte' },
-        { id: 'oi14', menuItemId: 'm11', name: 'Negroni Defumado em Carvalho', quantity: 2, unitPrice: 46.0 },
-      ],
-    },
-  ];
-
-  const reservations: Reservation[] = [
-    {
-      id: 'r1',
-      customerName: 'Mariana Vasconcelos',
-      phone: '(11) 98412-3309',
-      guests: 4,
-      time: '13:00',
-      date: todayDateStr(),
-      zonePreference: 'Salão Principal',
-      tableId: 't5',
-      status: 'confirmada',
-      notes: 'Aniversário — solicitar sobremesa cortesia se possível',
-    },
-    {
-      id: 'r2',
-      customerName: 'Eduardo Cavalcanti',
-      phone: '(11) 99204-8812',
-      guests: 4,
-      time: '13:30',
-      date: todayDateStr(),
-      zonePreference: 'Terraço',
-      tableId: 't9',
-      status: 'aguardando',
-      notes: 'Preferência por mesa próxima ao jardim',
-    },
-    {
-      id: 'r3',
-      customerName: 'Beatriz & André Nunes',
-      phone: '(11) 97150-4421',
-      guests: 2,
-      time: '19:30',
-      date: todayDateStr(),
-      zonePreference: 'Salão Principal',
-      tableId: null,
-      status: 'confirmada',
-    },
-    {
-      id: 'r4',
-      customerName: 'Grupo Studio Arq',
-      phone: '(11) 96331-1098',
-      guests: 6,
-      time: '20:30',
-      date: todayDateStr(),
-      zonePreference: 'Terraço',
-      tableId: null,
-      status: 'confirmada',
-      notes: 'Alergia severa a frutos do mar (1 pessoa)',
-    },
-    {
-      id: 'r5',
-      customerName: 'Henrique Salgado',
-      phone: '(11) 98845-7720',
-      guests: 2,
-      time: '21:00',
-      date: todayDateStr(),
-      zonePreference: 'Balcão',
-      tableId: null,
-      status: 'aguardando',
-    },
-  ];
-
-  const inventory: InventoryItem[] = [
-    { id: 'i1', name: 'Bife Ancho Angus (peça)', category: 'Proteínas', unit: 'kg', quantity: 14.5, minQuantity: 8, unitCost: 92.0, supplier: 'Frigorífico Pampa', updatedAt: minutesAgo(120) },
-    { id: 'i2', name: 'Filé de Salmão Fresco', category: 'Proteínas', unit: 'kg', quantity: 3.2, minQuantity: 6, unitCost: 84.0, supplier: 'Pescados Atlântico', updatedAt: minutesAgo(95) },
-    { id: 'i3', name: 'Lombo de Atum Sashimi', category: 'Proteínas', unit: 'kg', quantity: 4.8, minQuantity: 4, unitCost: 112.0, supplier: 'Pescados Atlântico', updatedAt: minutesAgo(140) },
-    { id: 'i4', name: 'Burrata de Búfala 200g', category: 'Laticínios', unit: 'un', quantity: 7, minQuantity: 10, unitCost: 18.5, supplier: 'Laticínio Benevento', updatedAt: minutesAgo(60) },
-    { id: 'i5', name: 'Queijo Mascarpone', category: 'Laticínios', unit: 'kg', quantity: 3.5, minQuantity: 2.5, unitCost: 68.0, supplier: 'Laticínio Benevento', updatedAt: minutesAgo(210) },
-    { id: 'i6', name: 'Arroz Arbóreo Italiano', category: 'Secos & Grãos', unit: 'kg', quantity: 18.0, minQuantity: 6, unitCost: 26.0, supplier: 'Empório Importadora', updatedAt: minutesAgo(300) },
-    { id: 'i7', name: 'Funghi Porcini Seco', category: 'Secos & Grãos', unit: 'kg', quantity: 0.8, minQuantity: 1.5, unitCost: 340.0, supplier: 'Empório Importadora', updatedAt: minutesAgo(85) },
-    { id: 'i8', name: 'Aspargos Verdes Frescos', category: 'Hortifruti', unit: 'maço', quantity: 16, minQuantity: 10, unitCost: 14.0, supplier: 'Horta Orgânica Vale', updatedAt: minutesAgo(180) },
-    { id: 'i9', name: 'Tomate Sweet Grape', category: 'Hortifruti', unit: 'kg', quantity: 9.0, minQuantity: 5, unitCost: 19.0, supplier: 'Horta Orgânica Vale', updatedAt: minutesAgo(190) },
-    { id: 'i10', name: 'Vinho Malbec Reserva 750ml', category: 'Bebidas', unit: 'gf', quantity: 19, minQuantity: 12, unitCost: 98.0, supplier: 'Vinícola Sul', updatedAt: minutesAgo(240) },
-  ];
-
-  const transactions: Transaction[] = [
-    { id: 'tx1', tableLabel: 'Mesa 03', subtotal: 248.0, serviceFee: 24.8, discount: 0, total: 272.8, paymentMethod: 'Cartão de Crédito', closedAt: minutesAgo(165), guests: 2 },
-    { id: 'tx2', tableLabel: 'Mesa 08', subtotal: 462.0, serviceFee: 46.2, discount: 0, total: 508.2, paymentMethod: 'PIX', closedAt: minutesAgo(130), guests: 4 },
-    { id: 'tx3', tableLabel: 'Balcão B', subtotal: 118.0, serviceFee: 11.8, discount: 0, total: 129.8, paymentMethod: 'Cartão de Débito', closedAt: minutesAgo(98), guests: 1 },
-    { id: 'tx4', tableLabel: 'Mesa 10', subtotal: 312.0, serviceFee: 31.2, discount: 0, total: 343.2, paymentMethod: 'Cartão de Crédito', closedAt: minutesAgo(62), guests: 2 },
-    { id: 'tx5', tableLabel: 'Mesa 06', subtotal: 214.0, serviceFee: 21.4, discount: 10, total: 225.4, paymentMethod: 'PIX', closedAt: minutesAgo(24), guests: 2 },
-  ];
-
-  const managerProfile: ManagerProfile = {
-    name: 'Gerente Geral',
-    role: 'Gerente Geral',
-    email: 'galvaojvitor04@gmail.com',
-  };
-
-  const staff: StaffMember[] = [
-    { id: 's1', name: managerProfile.name, role: 'Gerente', sector: 'Caixa & Recepção', shiftLabel: '10:00 – 19:00', status: 'em_turno', phone: '(11) 98112-4001', email: managerProfile.email, pin: '0000', accessEnabled: true },
-    { id: 's2', name: 'Henrique Costa', role: 'Chef de Cozinha', sector: 'Cozinha', shiftLabel: '10:30 – 19:30', status: 'em_turno', phone: '(11) 98223-4110', email: 'henrique@comandaco.com.br', pin: '2020', accessEnabled: true },
-    { id: 's3', name: 'Rafael Souza', role: 'Garçom', sector: 'Salão', shiftLabel: '11:00 – 19:00', status: 'em_turno', phone: '(11) 99104-5521', pin: '1111', accessEnabled: true },
-    { id: 's4', name: 'Camila Rocha', role: 'Garçom', sector: 'Salão', shiftLabel: '11:00 – 19:00', status: 'em_turno', phone: '(11) 99340-8814', pin: '1122', accessEnabled: true },
-    { id: 's5', name: 'Bruno Lima', role: 'Garçom', sector: 'Salão', shiftLabel: '15:00 – 23:30', status: 'em_turno', phone: '(11) 97412-9032', pin: '1133', accessEnabled: true },
-    { id: 's6', name: 'Carla Mendes', role: 'Bartender', sector: 'Bar', shiftLabel: '15:00 – 23:30', status: 'em_turno', phone: '(11) 98650-2219', pin: '3030', accessEnabled: true },
-    { id: 's7', name: 'Mariana Duarte', role: 'Caixa', sector: 'Caixa & Recepção', shiftLabel: '11:00 – 19:00', status: 'pausa', phone: '(11) 97901-3345', pin: '4040', accessEnabled: true },
-    { id: 's8', name: 'Sofia Nogueira', role: 'Hostess', sector: 'Caixa & Recepção', shiftLabel: '18:00 – 23:30', status: 'folga', phone: '(11) 98831-7410', pin: '5050', accessEnabled: false },
-  ];
-
   const rolePermissions: RolePermissions = {
-    'Gerente': ['overview', 'pdv', 'orders', 'floor', 'kds', 'menu', 'reservations', 'inventory', 'staff', 'access'],
+    'Gerente': ['overview', 'pdv', 'cash', 'orders', 'floor', 'kds', 'menu', 'reservations', 'inventory', 'staff', 'access'],
     'Chef de Cozinha': ['overview', 'kds', 'menu', 'inventory'],
     'Garçom': ['orders', 'floor', 'menu', 'reservations'],
     'Bartender': ['pdv', 'orders', 'kds', 'menu'],
-    'Caixa': ['overview', 'pdv', 'orders', 'floor'],
+    'Caixa': ['overview', 'pdv', 'cash', 'orders', 'floor'],
     'Hostess': ['floor', 'reservations'],
   };
 
-  const accessLogs: AccessLogEntry[] = [
-    { id: 'al1', staffId: 's1', staffName: managerProfile.name, role: 'Gerente', action: 'login', timestamp: minutesAgo(145), detail: 'Acesso inicial do turno como Gerente Geral' },
-    { id: 'al2', staffId: 's2', staffName: 'Henrique Costa', role: 'Chef de Cozinha', action: 'login', timestamp: minutesAgo(110), detail: 'Terminal Cozinha (KDS) autenticado via PIN' },
-    { id: 'al3', staffId: 's3', staffName: 'Rafael Souza', role: 'Garçom', action: 'login', timestamp: minutesAgo(85), detail: 'Acesso ao Salão & Pedidos liberado' },
-  ];
+  const cashRegister: CashRegisterState = {
+    currentSession: null,
+    history: [],
+  };
 
-  return { tables, menu, orders, reservations, inventory, transactions, staff, managerProfile, rolePermissions, accessLogs };
+  const managerProfile: ManagerProfile = {
+    name: '',
+    role: 'Gerente Geral',
+    email: '',
+  };
+
+  return {
+    tables: [],
+    menu: [],
+    orders: [],
+    reservations: [],
+    inventory: [],
+    transactions: [],
+    cashRegister,
+    staff: [],
+    managerProfile,
+    rolePermissions,
+    accessLogs: [],
+    setupCompleted: false,
+  };
+}
+
+function emptyTotalsByMethod(): Record<PaymentMethod, number> {
+  return {
+    'Cartão de Crédito': 0,
+    'Cartão de Débito': 0,
+    PIX: 0,
+    Dinheiro: 0,
+  };
+}
+
+function recalculateCashSession(
+  session: CashRegisterSession,
+  transactions: Transaction[],
+): void {
+  const sessionTxs = transactions.filter((tx) => tx.cashSessionId === session.id);
+  const totals = emptyTotalsByMethod();
+  let totalSales = 0;
+
+  for (const tx of sessionTxs) {
+    totals[tx.paymentMethod] = Number(
+      ((totals[tx.paymentMethod] || 0) + tx.total).toFixed(2),
+    );
+    totalSales = Number((totalSales + tx.total).toFixed(2));
+  }
+
+  let suprimentos = 0;
+  let sangrias = 0;
+  for (const mv of session.movements) {
+    if (mv.type === 'suprimento') suprimentos += mv.amount;
+    if (mv.type === 'sangria') sangrias += mv.amount;
+  }
+
+  session.totalsByMethod = totals;
+  session.totalSales = totalSales;
+  session.transactionCount = sessionTxs.length;
+  session.expectedCash = Number(
+    (session.openingBalance + totals.Dinheiro + suprimentos - sangrias).toFixed(2),
+  );
+  if (session.countedCash !== null) {
+    session.cashDifference = Number(
+      (session.countedCash - session.expectedCash).toFixed(2),
+    );
+  }
+}
+
+function sanitizeStaffMember(member: StaffMember): StaffMember {
+  if (member.role === 'Gerente' || member.id === 's1') {
+    return { ...member, pin: '••••' };
+  }
+  return member;
+}
+
+function sanitizeState(s: RestaurantState): RestaurantState {
+  return {
+    ...s,
+    staff: (s.staff || []).map(sanitizeStaffMember),
+  };
 }
 
 function loadState(): RestaurantState {
@@ -441,18 +153,6 @@ function loadState(): RestaurantState {
     if (!Array.isArray(parsed.staff)) {
       parsed.staff = seed.staff;
       mutated = true;
-    } else {
-      parsed.staff = parsed.staff.map((m, idx) => {
-        if (!m.pin || typeof m.accessEnabled !== 'boolean') {
-          mutated = true;
-          return {
-            ...m,
-            pin: m.pin || (m.id === 's1' ? '0000' : String(1000 + idx * 111)),
-            accessEnabled: typeof m.accessEnabled === 'boolean' ? m.accessEnabled : true,
-          };
-        }
-        return m;
-      });
     }
     if (!parsed.managerProfile) {
       parsed.managerProfile = seed.managerProfile;
@@ -461,9 +161,30 @@ function loadState(): RestaurantState {
     if (!parsed.rolePermissions) {
       parsed.rolePermissions = seed.rolePermissions;
       mutated = true;
+    } else {
+      if (!parsed.rolePermissions['Gerente']?.includes('cash')) {
+        parsed.rolePermissions['Gerente'] = Array.from(
+          new Set<NavSection>([...(parsed.rolePermissions['Gerente'] || []), 'cash']),
+        );
+        mutated = true;
+      }
+      if (parsed.rolePermissions['Caixa'] && !parsed.rolePermissions['Caixa'].includes('cash')) {
+        parsed.rolePermissions['Caixa'] = Array.from(
+          new Set<NavSection>([...parsed.rolePermissions['Caixa'], 'cash']),
+        );
+        mutated = true;
+      }
+    }
+    if (!parsed.cashRegister) {
+      parsed.cashRegister = seed.cashRegister;
+      mutated = true;
     }
     if (!Array.isArray(parsed.accessLogs)) {
       parsed.accessLogs = seed.accessLogs;
+      mutated = true;
+    }
+    if (typeof parsed.setupCompleted !== 'boolean') {
+      parsed.setupCompleted = parsed.staff.some((s) => s.role === 'Gerente');
       mutated = true;
     }
     if (mutated) {
@@ -477,12 +198,12 @@ function loadState(): RestaurantState {
   }
 }
 
-function saveState(state: RestaurantState): void {
+function saveState(nextState: RestaurantState): void {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
   const tempPath = `${DB_PATH}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(state, null, 2), 'utf-8');
+  fs.writeFileSync(tempPath, JSON.stringify(nextState, null, 2), 'utf-8');
   fs.renameSync(tempPath, DB_PATH);
 }
 
@@ -492,18 +213,317 @@ async function startServer(): Promise<void> {
   const app = express();
   app.use(express.json());
 
+  // Always mask Gerente PINs before sending state or staff payloads to clients
+  app.use((_req, res, next) => {
+    const origJson = res.json.bind(res);
+    res.json = ((body: unknown) => {
+      if (body && typeof body === 'object') {
+        const record = body as Record<string, unknown>;
+        if ('state' in record && record.state && typeof record.state === 'object') {
+          record.state = sanitizeState(record.state as RestaurantState);
+        } else if ('staff' in record && 'rolePermissions' in record && 'tables' in record) {
+          return origJson(sanitizeState(record as unknown as RestaurantState));
+        }
+        if ('operator' in record && record.operator && typeof record.operator === 'object') {
+          record.operator = sanitizeStaffMember(record.operator as StaffMember);
+        }
+        if ('member' in record && record.member && typeof record.member === 'object') {
+          record.member = sanitizeStaffMember(record.member as StaffMember);
+        }
+      }
+      return origJson(body);
+    }) as typeof res.json;
+    next();
+  });
+
   // Full state endpoint
   app.get('/api/state', (_req, res) => {
-    res.json(state);
+    res.json(sanitizeState(state));
+  });
+
+  // Initial General Manager Onboarding (Nome + PIN)
+  app.post('/api/setup/manager', (req, res) => {
+    if (state.setupCompleted && state.staff.some((s) => s.role === 'Gerente')) {
+      res.status(400).json({ error: 'O Gerente Geral já foi cadastrado neste sistema.' });
+      return;
+    }
+
+    const { name, email = '', pin, confirmPin } = req.body as {
+      name?: string;
+      email?: string;
+      pin?: string;
+      confirmPin?: string;
+    };
+
+    const cleanName = String(name ?? '').trim();
+    if (cleanName.length < 2) {
+      res.status(400).json({ error: 'Informe o nome completo do Gerente Geral.' });
+      return;
+    }
+
+    const cleanPin = String(pin ?? '').trim();
+    const cleanConfirm = String(confirmPin ?? '').trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      res.status(400).json({ error: 'Crie um PIN de acesso numérico com 4 dígitos.' });
+      return;
+    }
+    if (cleanConfirm !== cleanPin) {
+      res.status(400).json({ error: 'A confirmação do PIN não confere.' });
+      return;
+    }
+
+    const cleanEmail = String(email ?? '').trim();
+    const nowIso = new Date().toISOString();
+
+    state.managerProfile = {
+      name: cleanName,
+      role: 'Gerente Geral',
+      email: cleanEmail,
+    };
+
+    const gmMember: StaffMember = {
+      id: 's1',
+      name: cleanName,
+      role: 'Gerente',
+      sector: 'Caixa & Recepção',
+      shiftLabel: '10:00 – 19:00',
+      status: 'em_turno',
+      phone: '',
+      email: cleanEmail || undefined,
+      pin: cleanPin,
+      accessEnabled: true,
+    };
+
+    state.staff = [gmMember, ...state.staff.filter((s) => s.id !== 's1' && s.role !== 'Gerente')];
+    state.setupCompleted = true;
+    state.accessLogs.unshift({
+      id: `al_${Date.now()}`,
+      staffId: gmMember.id,
+      staffName: gmMember.name,
+      role: gmMember.role,
+      action: 'login',
+      timestamp: nowIso,
+      detail: 'Cadastro inicial do Gerente Geral concluído',
+    });
+
+    saveState(state);
+    res.status(201).json({ operator: sanitizeStaffMember(gmMember), state: sanitizeState(state) });
+  });
+
+  // Cash Register: Open Session
+  app.post('/api/cash/open', (req, res) => {
+    if (state.cashRegister.currentSession?.status === 'aberto') {
+      res.status(400).json({ error: 'Já existe um caixa aberto no momento.' });
+      return;
+    }
+
+    const { openingBalance = 0, openedBy = 'Operador', openingNotes } = req.body as {
+      openingBalance?: number;
+      openedBy?: string;
+      openingNotes?: string;
+    };
+
+    const safeBalance = Number(openingBalance);
+    if (Number.isNaN(safeBalance) || safeBalance < 0) {
+      res.status(400).json({ error: 'Informe um fundo de troco inicial válido (maior ou igual a zero).' });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const nextIdx = state.cashRegister.history.length + 1;
+    const session: CashRegisterSession = {
+      id: `cx_${Date.now()}`,
+      code: `CX-${String(nextIdx).padStart(3, '0')}`,
+      status: 'aberto',
+      openedAt: nowIso,
+      openedBy: String(openedBy).trim() || state.managerProfile.name || 'Operador',
+      openingBalance: Number(safeBalance.toFixed(2)),
+      openingNotes: openingNotes?.trim() || undefined,
+      movements: [],
+      closedAt: null,
+      closedBy: null,
+      countedCash: null,
+      expectedCash: Number(safeBalance.toFixed(2)),
+      cashDifference: null,
+      totalsByMethod: emptyTotalsByMethod(),
+      totalSales: 0,
+      transactionCount: 0,
+    };
+
+    state.cashRegister.currentSession = session;
+    saveState(state);
+    res.status(201).json({ session, state: sanitizeState(state) });
+  });
+
+  // Cash Register: Movement (Suprimento / Sangria)
+  app.post('/api/cash/movement', (req, res) => {
+    const session = state.cashRegister.currentSession;
+    if (!session || session.status !== 'aberto') {
+      res.status(400).json({ error: 'Abra o caixa antes de registrar movimentações.' });
+      return;
+    }
+
+    const { type, amount, reason, operatorName = 'Operador' } = req.body as {
+      type?: CashMovementType;
+      amount?: number;
+      reason?: string;
+      operatorName?: string;
+    };
+
+    if (type !== 'suprimento' && type !== 'sangria') {
+      res.status(400).json({ error: 'Tipo de movimentação inválido.' });
+      return;
+    }
+
+    const safeAmount = Number(amount);
+    if (Number.isNaN(safeAmount) || safeAmount <= 0) {
+      res.status(400).json({ error: 'Informe um valor positivo para a movimentação.' });
+      return;
+    }
+
+    const cleanReason = String(reason ?? '').trim();
+    if (!cleanReason) {
+      res.status(400).json({ error: 'Informe o motivo da movimentação.' });
+      return;
+    }
+
+    const movement: CashRegisterMovement = {
+      id: `mv_${Date.now()}`,
+      type,
+      amount: Number(safeAmount.toFixed(2)),
+      reason: cleanReason,
+      operatorName: String(operatorName).trim() || 'Operador',
+      createdAt: new Date().toISOString(),
+    };
+
+    session.movements.unshift(movement);
+    recalculateCashSession(session, state.transactions);
+    saveState(state);
+    res.status(201).json({ movement, session, state: sanitizeState(state) });
+  });
+
+  // Cash Register: Close Session
+  app.post('/api/cash/close', (req, res) => {
+    const session = state.cashRegister.currentSession;
+    if (!session || session.status !== 'aberto') {
+      res.status(400).json({ error: 'Nenhum caixa aberto para fechamento.' });
+      return;
+    }
+
+    const { countedCash, closedBy = 'Operador', closingNotes } = req.body as {
+      countedCash?: number;
+      closedBy?: string;
+      closingNotes?: string;
+    };
+
+    const safeCounted = Number(countedCash);
+    if (Number.isNaN(safeCounted) || safeCounted < 0) {
+      res.status(400).json({ error: 'Informe o valor contado na gaveta.' });
+      return;
+    }
+
+    session.countedCash = Number(safeCounted.toFixed(2));
+    recalculateCashSession(session, state.transactions);
+    session.status = 'fechado';
+    session.closedAt = new Date().toISOString();
+    session.closedBy = String(closedBy).trim() || state.managerProfile.name || 'Operador';
+    session.closingNotes = closingNotes?.trim() || undefined;
+
+    state.cashRegister.history.unshift(session);
+    state.cashRegister.currentSession = null;
+    saveState(state);
+    res.json({ session, state: sanitizeState(state) });
+  });
+
+  // Create new table in floor plan
+  app.post('/api/tables', (req, res) => {
+    const {
+      number,
+      label,
+      zone = 'Salão Principal',
+      seats = 4,
+    } = req.body as {
+      number?: number;
+      label?: string;
+      zone?: string;
+      seats?: number;
+    };
+
+    const allowedZones = ['Salão Principal', 'Terraço', 'Balcão'] as const;
+    const validZone = allowedZones.includes(zone as (typeof allowedZones)[number])
+      ? (zone as (typeof allowedZones)[number])
+      : null;
+
+    if (!validZone) {
+      res.status(400).json({ error: 'Setor inválido. Escolha Salão Principal, Terraço ou Balcão.' });
+      return;
+    }
+
+    const parsedSeats = Math.round(Number(seats));
+    if (Number.isNaN(parsedSeats) || parsedSeats < 1 || parsedSeats > 20) {
+      res.status(400).json({ error: 'Informe uma quantidade de lugares entre 1 e 20.' });
+      return;
+    }
+
+    const maxNumber = state.tables.reduce((max, t) => Math.max(max, t.number), 0);
+    const parsedNumber =
+      number !== undefined && number !== null && String(number).trim() !== ''
+        ? Math.round(Number(number))
+        : maxNumber + 1;
+
+    if (Number.isNaN(parsedNumber) || parsedNumber < 1) {
+      res.status(400).json({ error: 'Número da mesa inválido.' });
+      return;
+    }
+
+    if (state.tables.some((t) => t.number === parsedNumber)) {
+      res.status(400).json({ error: `Já existe uma mesa com o número ${parsedNumber}.` });
+      return;
+    }
+
+    const defaultLabel =
+      validZone === 'Balcão'
+        ? `Balcão ${String(parsedNumber).padStart(2, '0')}`
+        : `Mesa ${String(parsedNumber).padStart(2, '0')}`;
+    const finalLabel = label?.trim() || defaultLabel;
+
+    if (
+      state.tables.some(
+        (t) => t.label.trim().toLowerCase() === finalLabel.toLowerCase(),
+      )
+    ) {
+      res.status(400).json({ error: `Já existe uma mesa chamada "${finalLabel}".` });
+      return;
+    }
+
+    const newTable: RestaurantTable = {
+      id: `t_${Date.now()}`,
+      number: parsedNumber,
+      label: finalLabel,
+      zone: validZone,
+      seats: parsedSeats,
+      status: 'livre',
+      guests: 0,
+      waiter: '',
+      seatedAt: null,
+    };
+
+    state.tables.push(newTable);
+    state.tables.sort((a, b) => a.number - b.number);
+    saveState(state);
+    res.status(201).json({ table: newTable, state });
   });
 
   // Update table metadata/status
   app.patch('/api/tables/:id', (req, res) => {
     const { id } = req.params;
-    const { status, guests, waiter } = req.body as {
+    const { status, guests, waiter, label, seats, zone } = req.body as {
       status?: TableStatus;
       guests?: number;
       waiter?: string;
+      label?: string;
+      seats?: number;
+      zone?: 'Salão Principal' | 'Terraço' | 'Balcão';
     };
     const table = state.tables.find((t) => t.id === id);
     if (!table) {
@@ -528,9 +548,47 @@ async function startServer(): Promise<void> {
     if (typeof waiter === 'string') {
       table.waiter = waiter;
     }
+    if (typeof label === 'string' && label.trim()) {
+      table.label = label.trim();
+    }
+    if (typeof seats === 'number' && seats >= 1 && seats <= 20) {
+      table.seats = Math.round(seats);
+    }
+    if (zone && ['Salão Principal', 'Terraço', 'Balcão'].includes(zone)) {
+      table.zone = zone;
+    }
 
     saveState(state);
     res.json({ table, state });
+  });
+
+  // Delete an idle table from floor plan
+  app.delete('/api/tables/:id', (req, res) => {
+    const { id } = req.params;
+    const table = state.tables.find((t) => t.id === id);
+    if (!table) {
+      res.status(404).json({ error: 'Mesa não encontrada.' });
+      return;
+    }
+
+    const hasOpenOrders = state.orders.some(
+      (o) => o.tableId === id && !o.paid && o.status !== 'cancelado',
+    );
+    if (table.status === 'ocupada' || hasOpenOrders) {
+      res.status(400).json({
+        error: 'Não é possível remover uma mesa ocupada ou com pedidos em aberto.',
+      });
+      return;
+    }
+
+    state.tables = state.tables.filter((t) => t.id !== id);
+    state.reservations.forEach((r) => {
+      if (r.tableId === id) {
+        r.tableId = null;
+      }
+    });
+    saveState(state);
+    res.json({ state });
   });
 
   // Close table bill & record financial transaction
@@ -547,6 +605,12 @@ async function startServer(): Promise<void> {
       paymentMethod?: PaymentMethod;
       nextStatus?: 'livre' | 'limpeza';
     };
+
+    const currentCash = state.cashRegister.currentSession;
+    if (!currentCash || currentCash.status !== 'aberto') {
+      res.status(400).json({ error: 'Abra o caixa antes de receber contas de mesas.' });
+      return;
+    }
 
     const table = state.tables.find((t) => t.id === id);
     if (!table) {
@@ -577,10 +641,12 @@ async function startServer(): Promise<void> {
       paymentMethod,
       closedAt: new Date().toISOString(),
       guests: table.guests || 1,
+      cashSessionId: currentCash.id,
     };
 
     if (total > 0) {
       state.transactions.unshift(transaction);
+      recalculateCashSession(currentCash, state.transactions);
     }
 
     for (const order of openOrders) {
@@ -801,18 +867,79 @@ async function startServer(): Promise<void> {
     res.json({ order, state });
   });
 
-  // Update order status (KDS workflow & cancellation)
+  // Update order status (KDS workflow, cancellation & reopen)
   app.patch('/api/orders/:id/status', (req, res) => {
     const { id } = req.params;
-    const { status } = req.body as { status: OrderStatus };
+    const { status, cancelReason, releaseTableIfEmpty } = req.body as {
+      status: OrderStatus;
+      cancelReason?: string;
+      releaseTableIfEmpty?: boolean;
+    };
+
+    const allowedStatuses: OrderStatus[] = [
+      'pendente',
+      'preparo',
+      'pronto',
+      'entregue',
+      'cancelado',
+    ];
+    if (!allowedStatuses.includes(status)) {
+      res.status(400).json({ error: 'Status de pedido inválido.' });
+      return;
+    }
+
     const order = state.orders.find((o) => o.id === id);
     if (!order) {
       res.status(404).json({ error: 'Pedido não encontrado.' });
       return;
     }
 
+    if (status === 'cancelado' && order.paid) {
+      res.status(400).json({ error: 'Não é possível cancelar um pedido já pago.' });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
     order.status = status;
-    order.updatedAt = new Date().toISOString();
+    order.updatedAt = nowIso;
+
+    if (status === 'cancelado') {
+      order.cancelledAt = nowIso;
+      order.cancelReason = cancelReason?.trim() || undefined;
+
+      if (releaseTableIfEmpty && order.tableId) {
+        const hasOtherOpenOrders = state.orders.some(
+          (o) =>
+            o.id !== order.id &&
+            o.tableId === order.tableId &&
+            !o.paid &&
+            o.status !== 'cancelado',
+        );
+        if (!hasOtherOpenOrders) {
+          const table = state.tables.find((t) => t.id === order.tableId);
+          if (table && table.status === 'ocupada') {
+            table.status = 'livre';
+            table.guests = 0;
+            table.seatedAt = null;
+            table.waiter = '';
+          }
+        }
+      }
+    } else {
+      delete order.cancelledAt;
+      delete order.cancelReason;
+
+      if (order.tableId) {
+        const table = state.tables.find((t) => t.id === order.tableId);
+        if (table && table.status === 'livre') {
+          table.status = 'ocupada';
+          table.seatedAt = nowIso;
+          if (table.guests === 0) table.guests = 2;
+          if (!table.waiter) table.waiter = order.waiter;
+        }
+      }
+    }
+
     saveState(state);
     res.json({ order, state });
   });
@@ -836,6 +963,12 @@ async function startServer(): Promise<void> {
       sendToKitchen?: boolean;
       items: Array<{ menuItemId: string; quantity: number; notes?: string }>;
     };
+
+    const currentCash = state.cashRegister.currentSession;
+    if (!currentCash || currentCash.status !== 'aberto') {
+      res.status(400).json({ error: 'Abra o caixa antes de finalizar vendas no PDV.' });
+      return;
+    }
 
     if (!Array.isArray(items) || items.length === 0) {
       res.status(400).json({ error: 'Adicione ao menos um item à venda.' });
@@ -895,10 +1028,12 @@ async function startServer(): Promise<void> {
       paymentMethod,
       closedAt: nowIso,
       guests: 1,
+      cashSessionId: currentCash.id,
     };
 
     state.orders.unshift(order);
     state.transactions.unshift(transaction);
+    recalculateCashSession(currentCash, state.transactions);
     saveState(state);
     res.status(201).json({ order, transaction, state });
   });
@@ -979,9 +1114,10 @@ async function startServer(): Promise<void> {
 
   app.patch('/api/reservations/:id', (req, res) => {
     const { id } = req.params;
-    const { status, tableId } = req.body as {
+    const { status, tableId, cancelReason } = req.body as {
       status?: ReservationStatus;
       tableId?: string | null;
+      cancelReason?: string;
     };
     const reservation = state.reservations.find((r) => r.id === id);
     if (!reservation) {
@@ -1002,16 +1138,49 @@ async function startServer(): Promise<void> {
           table.seatedAt = new Date().toISOString();
           if (!table.waiter) table.waiter = 'Rafael Souza';
         }
-      } else if (status === 'cancelada' && reservation.tableId) {
-        const table = state.tables.find((t) => t.id === reservation.tableId);
-        if (table && table.status === 'reservada') {
-          table.status = 'livre';
+      } else if (status === 'cancelada') {
+        reservation.cancelledAt = new Date().toISOString();
+        reservation.cancelReason = cancelReason?.trim() || undefined;
+        if (reservation.tableId) {
+          const table = state.tables.find((t) => t.id === reservation.tableId);
+          if (table && table.status === 'reservada') {
+            table.status = 'livre';
+          }
+        }
+      } else if (status === 'confirmada' || status === 'aguardando') {
+        delete reservation.cancelledAt;
+        delete reservation.cancelReason;
+        if (reservation.tableId) {
+          const table = state.tables.find((t) => t.id === reservation.tableId);
+          if (table && table.status === 'livre') {
+            table.status = 'reservada';
+          }
         }
       }
     }
 
     saveState(state);
     res.json({ reservation, state });
+  });
+
+  app.delete('/api/reservations/:id', (req, res) => {
+    const { id } = req.params;
+    const reservation = state.reservations.find((r) => r.id === id);
+    if (!reservation) {
+      res.status(404).json({ error: 'Reserva não encontrada.' });
+      return;
+    }
+
+    if (reservation.tableId && reservation.status !== 'sentada') {
+      const table = state.tables.find((t) => t.id === reservation.tableId);
+      if (table && table.status === 'reservada') {
+        table.status = 'livre';
+      }
+    }
+
+    state.reservations = state.reservations.filter((r) => r.id !== id);
+    saveState(state);
+    res.json({ state });
   });
 
   // Inventory
@@ -1093,13 +1262,22 @@ async function startServer(): Promise<void> {
       res.status(404).json({ error: 'Integrante da equipe não encontrado.' });
       return;
     }
-    Object.assign(member, req.body);
-    if (id === 's1') {
-      if (typeof req.body.name === 'string' && req.body.name.trim()) {
-        state.managerProfile.name = req.body.name.trim();
+    const updates = { ...req.body } as Partial<StaffMember>;
+    if (updates.pin !== undefined) {
+      const cleanPin = String(updates.pin).trim();
+      if (!/^\d{4}$/.test(cleanPin)) {
+        res.status(400).json({ error: 'O PIN deve conter exatamente 4 dígitos numéricos.' });
+        return;
       }
-      if (typeof req.body.email === 'string') {
-        state.managerProfile.email = req.body.email.trim();
+      updates.pin = cleanPin;
+    }
+    Object.assign(member, updates);
+    if (id === 's1' || member.role === 'Gerente') {
+      if (typeof updates.name === 'string' && updates.name.trim()) {
+        state.managerProfile.name = updates.name.trim();
+      }
+      if (typeof updates.email === 'string') {
+        state.managerProfile.email = updates.email.trim();
       }
     }
     saveState(state);
@@ -1108,6 +1286,10 @@ async function startServer(): Promise<void> {
 
   app.delete('/api/staff/:id', (req, res) => {
     const { id } = req.params;
+    if (id === 's1') {
+      res.status(400).json({ error: 'Não é possível remover o Gerente Geral principal.' });
+      return;
+    }
     state.staff = state.staff.filter((s) => s.id !== id);
     saveState(state);
     res.json({ state });
@@ -1136,31 +1318,90 @@ async function startServer(): Promise<void> {
     res.json({ managerProfile: state.managerProfile, state });
   });
 
-  // Access Control Panel: Authenticate operator via PIN
+  // Access Control Panel: Authenticate operator via Cargo (role) + PIN
   app.post('/api/access/login', (req, res) => {
-    const { staffId, pin } = req.body as { staffId: string; pin: string };
-    const member = state.staff.find((s) => s.id === staffId);
-    if (!member) {
-      res.status(404).json({ error: 'Operador não encontrado.' });
+    const { staffId, role, pin } = req.body as {
+      staffId?: string;
+      role?: StaffRole;
+      pin?: string;
+    };
+
+    const validRoles: StaffRole[] = [
+      'Gerente',
+      'Chef de Cozinha',
+      'Garçom',
+      'Bartender',
+      'Caixa',
+      'Hostess',
+    ];
+
+    if (!role || !validRoles.includes(role)) {
+      res.status(400).json({ error: 'Informe um cargo válido para acessar o sistema.' });
       return;
     }
-    if (member.accessEnabled === false) {
-      state.accessLogs.unshift({
-        id: `al_${Date.now()}`,
-        staffId: member.id,
-        staffName: member.name,
-        role: member.role,
-        action: 'acesso_bloqueado',
-        timestamp: new Date().toISOString(),
-        detail: 'Tentativa de entrada com acesso bloqueado',
-      });
-      saveState(state);
-      res.status(403).json({ error: 'O acesso deste colaborador está bloqueado pelo Gerente Geral.' });
+
+    const cleanPin = String(pin ?? '').trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      res.status(400).json({ error: 'Informe o PIN de acesso com 4 dígitos.' });
       return;
     }
-    if ((member.pin || '0000') !== String(pin).trim()) {
-      res.status(401).json({ error: 'PIN incorreto. Verifique o código de 4 dígitos.' });
-      return;
+
+    let member: StaffMember | undefined;
+
+    if (staffId) {
+      const candidate = state.staff.find((s) => s.id === staffId);
+      if (!candidate) {
+        res.status(404).json({ error: 'Operador não encontrado.' });
+        return;
+      }
+      if (candidate.role !== role) {
+        res.status(401).json({ error: 'O cargo informado não corresponde ao operador selecionado.' });
+        return;
+      }
+      if (candidate.accessEnabled === false) {
+        state.accessLogs.unshift({
+          id: `al_${Date.now()}`,
+          staffId: candidate.id,
+          staffName: candidate.name,
+          role: candidate.role,
+          action: 'acesso_bloqueado',
+          timestamp: new Date().toISOString(),
+          detail: 'Tentativa de entrada com acesso bloqueado',
+        });
+        saveState(state);
+        res.status(403).json({ error: 'O acesso deste colaborador está bloqueado pelo Gerente Geral.' });
+        return;
+      }
+      if ((candidate.pin || '0000') !== cleanPin) {
+        res.status(401).json({ error: 'PIN incorreto. Verifique o código de 4 dígitos.' });
+        return;
+      }
+      member = candidate;
+    } else {
+      const matchesInRole = state.staff.filter(
+        (s) => s.role === role && (s.pin || '0000') === cleanPin,
+      );
+      if (matchesInRole.length === 0) {
+        res.status(401).json({ error: 'Cargo ou PIN de acesso incorreto.' });
+        return;
+      }
+      const enabledMatch = matchesInRole.find((s) => s.accessEnabled !== false);
+      if (!enabledMatch) {
+        const blocked = matchesInRole[0];
+        state.accessLogs.unshift({
+          id: `al_${Date.now()}`,
+          staffId: blocked.id,
+          staffName: blocked.name,
+          role: blocked.role,
+          action: 'acesso_bloqueado',
+          timestamp: new Date().toISOString(),
+          detail: 'Tentativa de entrada com acesso bloqueado',
+        });
+        saveState(state);
+        res.status(403).json({ error: 'O acesso deste colaborador está bloqueado pelo Gerente Geral.' });
+        return;
+      }
+      member = enabledMatch;
     }
 
     state.accessLogs.unshift({

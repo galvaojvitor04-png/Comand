@@ -12,6 +12,9 @@ import {
   Send,
   Printer,
   X,
+  Lock,
+  LockOpen,
+  AlertTriangle,
 } from 'lucide-react';
 import type { MenuCategory, MenuItem, PaymentMethod, RestaurantState } from '../types.ts';
 import { formatCurrency, formatTimeShort } from '../utils/format.ts';
@@ -62,6 +65,7 @@ interface PosViewProps {
       nextStatus: 'livre' | 'limpeza';
     },
   ) => Promise<void>;
+  onNavigateToCash: () => void;
 }
 
 const CATEGORIES: Array<'Todos' | MenuCategory> = [
@@ -84,6 +88,7 @@ export function PosView({
   onDirectSale,
   onSendToTable,
   onCloseTableBill,
+  onNavigateToCash,
 }: PosViewProps) {
   const [mode, setMode] = useState<'balcao' | 'mesa' | 'receber'>('balcao');
   const [categoryFilter, setCategoryFilter] = useState<'Todos' | MenuCategory>('Todos');
@@ -106,21 +111,27 @@ export function PosView({
   const [includeServiceFee, setIncludeServiceFee] = useState(true);
   const [splitPeople, setSplitPeople] = useState('1');
   const [submitting, setSubmitting] = useState(false);
+  const [posError, setPosError] = useState<string | null>(null);
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
 
-  // Shift Cash Register Metrics
-  const todayTotal = state.transactions.reduce((sum, tx) => sum + tx.total, 0);
-  const pixTotal = state.transactions
+  const currentCash = state.cashRegister?.currentSession || null;
+  const isCashOpen = currentCash?.status === 'aberto';
+
+  const sessionTxs = isCashOpen
+    ? state.transactions.filter((tx) => tx.cashSessionId === currentCash.id)
+    : [];
+  const todayTotal = sessionTxs.reduce((sum, tx) => sum + tx.total, 0);
+  const pixTotal = sessionTxs
     .filter((tx) => tx.paymentMethod === 'PIX')
     .reduce((sum, tx) => sum + tx.total, 0);
-  const cardTotal = state.transactions
+  const cardTotal = sessionTxs
     .filter(
       (tx) =>
         tx.paymentMethod === 'Cartão de Crédito' ||
         tx.paymentMethod === 'Cartão de Débito',
     )
     .reduce((sum, tx) => sum + tx.total, 0);
-  const cashTotal = state.transactions
+  const cashTotal = sessionTxs
     .filter((tx) => tx.paymentMethod === 'Dinheiro')
     .reduce((sum, tx) => sum + tx.total, 0);
 
@@ -219,6 +230,7 @@ export function PosView({
 
   const handleCompleteDirectSale = async () => {
     if (cart.length === 0) return;
+    setPosError(null);
     setSubmitting(true);
     try {
       const label =
@@ -259,6 +271,8 @@ export function PosView({
       setCustomerLabel('');
       setDiscountInput('0');
       setCashReceivedInput('');
+    } catch (err) {
+      setPosError(err instanceof Error ? err.message : 'Erro ao finalizar venda.');
     } finally {
       setSubmitting(false);
     }
@@ -288,6 +302,7 @@ export function PosView({
 
   const handleReceiveTable = async () => {
     if (!activeReceiveTableId || receiveSubtotal <= 0) return;
+    setPosError(null);
     setSubmitting(true);
     try {
       const targetTable = state.tables.find((t) => t.id === activeReceiveTableId);
@@ -322,6 +337,8 @@ export function PosView({
       setDiscountInput('0');
       setCashReceivedInput('');
       setSplitPeople('1');
+    } catch (err) {
+      setPosError(err instanceof Error ? err.message : 'Erro ao receber conta.');
     } finally {
       setSubmitting(false);
     }
@@ -329,10 +346,85 @@ export function PosView({
 
   return (
     <div className="space-y-6">
+      {/* Cash Register Status Bar */}
+      <section
+        className={`px-5 py-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          isCashOpen
+            ? 'bg-white border-slate-200'
+            : 'bg-amber-50/80 border-amber-200'
+        }`}
+      >
+        <div className="flex items-center gap-3 text-xs">
+          {isCashOpen ? (
+            <>
+              <LockOpen className="w-4 h-4 text-emerald-700 shrink-0" />
+              <div className="text-slate-700">
+                <span className="font-semibold text-slate-900">
+                  Caixa {currentCash.code} Aberto
+                </span>
+                <span className="mx-1.5 text-slate-300">·</span>
+                <span>Aberto às {formatTimeShort(currentCash.openedAt)} por {currentCash.openedBy}</span>
+                <span className="mx-1.5 text-slate-300">·</span>
+                <span>
+                  Gaveta esperada:{' '}
+                  <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                    {formatCurrency(currentCash.expectedCash ?? currentCash.openingBalance)}
+                  </span>
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+              <div className="text-amber-900">
+                <span className="font-semibold">Caixa Fechado</span>
+                <span className="mx-1.5 text-amber-400">·</span>
+                <span>
+                  Realize a abertura de caixa para habilitar recebimentos diretos e fechamento de mesas.
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onNavigateToCash}
+          className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+            isCashOpen
+              ? 'text-slate-700 bg-slate-100 hover:bg-slate-200'
+              : 'text-white bg-teal-700 hover:bg-teal-800'
+          }`}
+        >
+          {isCashOpen ? 'Conferência & Fechamento' : 'Abrir Caixa Agora'}
+        </button>
+      </section>
+
+      {posError && (
+        <div
+          role="alert"
+          className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-red-700 flex items-center justify-between gap-3"
+        >
+          <span className="inline-flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {posError}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPosError(null)}
+            className="text-red-500 hover:text-red-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Caixa do Turno Strip */}
       <section className="grid grid-cols-2 lg:grid-cols-5 bg-white border border-slate-200 rounded-xl divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
         <div className="p-4">
-          <div className="text-xs text-slate-500">Caixa do Turno</div>
+          <div className="text-xs text-slate-500">
+            {isCashOpen ? `Caixa ${currentCash.code}` : 'Caixa do Turno'}
+          </div>
           <div className="mt-1 text-lg font-semibold text-slate-900 font-mono tabular-nums">
             {formatCurrency(todayTotal)}
           </div>
@@ -359,7 +451,7 @@ export function PosView({
           <div>
             <div className="text-xs text-slate-500">Vendas Fechadas</div>
             <div className="mt-1 text-base font-semibold text-slate-900 font-mono tabular-nums">
-              {state.transactions.length}
+              {sessionTxs.length}
             </div>
           </div>
           {lastReceipt && (
@@ -806,14 +898,16 @@ export function PosView({
             {mode === 'balcao' && (
               <button
                 type="button"
-                disabled={cart.length === 0 || submitting}
+                disabled={cart.length === 0 || submitting || !isCashOpen}
                 onClick={handleCompleteDirectSale}
                 className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors disabled:opacity-40"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                {submitting
-                  ? 'Processando venda...'
-                  : `Finalizar Venda · ${formatCurrency(finalTotal)}`}
+                {!isCashOpen
+                  ? 'Abra o caixa para finalizar venda'
+                  : submitting
+                    ? 'Processando venda...'
+                    : `Finalizar Venda · ${formatCurrency(finalTotal)}`}
               </button>
             )}
 
@@ -838,14 +932,16 @@ export function PosView({
             {mode === 'receber' && (
               <button
                 type="button"
-                disabled={receiveSubtotal <= 0 || submitting}
+                disabled={receiveSubtotal <= 0 || submitting || !isCashOpen}
                 onClick={handleReceiveTable}
                 className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-40"
               >
                 <Receipt className="w-4 h-4" />
-                {submitting
-                  ? 'Recebendo...'
-                  : `Receber ${formatCurrency(finalTotal)} e Liberar Mesa`}
+                {!isCashOpen
+                  ? 'Abra o caixa para receber mesa'
+                  : submitting
+                    ? 'Recebendo...'
+                    : `Receber ${formatCurrency(finalTotal)} e Liberar Mesa`}
               </button>
             )}
           </div>

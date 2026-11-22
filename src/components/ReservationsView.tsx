@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { Plus, Search, CheckCircle2, XCircle, X, Users, Calendar } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  CheckCircle2,
+  XCircle,
+  X,
+  Users,
+  Calendar,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 import type { Reservation, ReservationStatus, RestaurantState, TableZone } from '../types.ts';
 
 interface ReservationsViewProps {
@@ -7,8 +17,9 @@ interface ReservationsViewProps {
   onCreateReservation: (payload: Omit<Reservation, 'id' | 'status'>) => Promise<void>;
   onUpdateReservation: (
     id: string,
-    payload: { status?: ReservationStatus; tableId?: string | null },
+    payload: { status?: ReservationStatus; tableId?: string | null; cancelReason?: string },
   ) => Promise<void>;
+  onDeleteReservation?: (id: string) => Promise<void>;
 }
 
 const STATUS_FILTERS: Array<{ value: 'todas' | ReservationStatus; label: string }> = [
@@ -19,10 +30,18 @@ const STATUS_FILTERS: Array<{ value: 'todas' | ReservationStatus; label: string 
   { value: 'cancelada', label: 'Canceladas' },
 ];
 
+const RESERVATION_CANCEL_PRESETS = [
+  'Desistência do cliente',
+  'Não compareceu (No-show)',
+  'Remarcação de horário',
+  'Erro no agendamento',
+];
+
 export function ReservationsView({
   state,
   onCreateReservation,
   onUpdateReservation,
+  onDeleteReservation,
 }: ReservationsViewProps) {
   const [statusFilter, setStatusFilter] = useState<'todas' | ReservationStatus>('todas');
   const [search, setSearch] = useState('');
@@ -36,6 +55,10 @@ export function ReservationsView({
   const [tableId, setTableId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [cancelTarget, setCancelTarget] = useState<Reservation | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const freeTables = state.tables.filter((t) => t.status === 'livre' || t.status === 'reservada');
 
@@ -97,6 +120,22 @@ export function ReservationsView({
       status: 'sentada',
       tableId: targetTableId || null,
     });
+  };
+
+  const handleConfirmCancelReservation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelTarget) return;
+    setBusyId(cancelTarget.id);
+    try {
+      await onUpdateReservation(cancelTarget.id, {
+        status: 'cancelada',
+        cancelReason: cancelReason.trim() || undefined,
+      });
+      setCancelTarget(null);
+      setCancelReason('');
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -199,6 +238,11 @@ export function ReservationsView({
                         {res.notes && (
                           <div className="text-xs text-amber-700 mt-1">{res.notes}</div>
                         )}
+                        {res.status === 'cancelada' && res.cancelReason && (
+                          <div className="text-xs text-red-600 mt-1">
+                            Motivo: {res.cancelReason}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-3 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 text-xs text-slate-700 tabular-nums">
@@ -228,12 +272,53 @@ export function ReservationsView({
                             </button>
                             <button
                               type="button"
-                              onClick={() => onUpdateReservation(res.id, { status: 'cancelada' })}
-                              title="Cancelar reserva"
-                              className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                              onClick={() => {
+                                setCancelTarget(res);
+                                setCancelReason('');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
                             >
-                              <XCircle className="w-4 h-4" />
+                              <XCircle className="w-3.5 h-3.5" />
+                              Cancelar
                             </button>
+                          </div>
+                        )}
+                        {res.status === 'cancelada' && (
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={busyId === res.id}
+                              onClick={async () => {
+                                setBusyId(res.id);
+                                try {
+                                  await onUpdateReservation(res.id, { status: 'confirmada' });
+                                } finally {
+                                  setBusyId(null);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-teal-700 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Reativar
+                            </button>
+                            {onDeleteReservation && (
+                              <button
+                                type="button"
+                                disabled={busyId === res.id}
+                                onClick={async () => {
+                                  setBusyId(res.id);
+                                  try {
+                                    await onDeleteReservation(res.id);
+                                  } finally {
+                                    setBusyId(null);
+                                  }
+                                }}
+                                title="Remover reserva"
+                                className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -380,6 +465,93 @@ export function ReservationsView({
                   className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50"
                 >
                   {saving ? 'Salvando...' : 'Confirmar Reserva'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Reservation Modal */}
+      {cancelTarget && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px]"
+        >
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Cancelar Reserva
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {cancelTarget.customerName} · {cancelTarget.time} · {cancelTarget.guests} pessoas
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancelTarget(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg"
+                aria-label="Fechar modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmCancelReservation} className="p-6 space-y-4">
+              {cancelTarget.tableId && (
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                  A mesa pré-alocada para esta reserva voltará ao status{' '}
+                  <strong className="text-emerald-700">Livre</strong> automaticamente.
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Motivo do cancelamento (opcional)
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {RESERVATION_CANCEL_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCancelReason(preset)}
+                      className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${
+                        cancelReason === preset
+                          ? 'border-red-300 bg-red-50 text-red-700 font-medium'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Descreva o motivo..."
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={busyId === cancelTarget.id}
+                  onClick={() => setCancelTarget(null)}
+                  className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  disabled={busyId === cancelTarget.id}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  {busyId === cancelTarget.id ? 'Cancelando...' : 'Confirmar Cancelamento'}
                 </button>
               </div>
             </form>

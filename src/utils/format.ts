@@ -14,6 +14,21 @@ export function formatTimeShort(isoString: string): string {
   });
 }
 
+export function formatDateTimeShort(isoString: string | null): string {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '—';
+  const dayMonth = date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+  });
+  const time = date.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${dayMonth} · ${time}`;
+}
+
 export function getElapsedMinutes(isoString: string | null, nowMs: number = Date.now()): number {
   if (!isoString) return 0;
   const start = new Date(isoString).getTime();

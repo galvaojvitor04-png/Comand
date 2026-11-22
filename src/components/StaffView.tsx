@@ -339,14 +339,16 @@ export function StaffView({
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteMember(member.id)}
-                            title="Remover colaborador"
-                            className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {member.id !== 's1' && (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteMember(member.id)}
+                              title="Remover colaborador"
+                              className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

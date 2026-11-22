@@ -50,6 +50,8 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   paid: boolean;
+  cancelReason?: string;
+  cancelledAt?: string;
 }
 
 export type ReservationStatus = 'confirmada' | 'aguardando' | 'sentada' | 'cancelada';
@@ -65,6 +67,8 @@ export interface Reservation {
   tableId: string | null;
   status: ReservationStatus;
   notes?: string;
+  cancelReason?: string;
+  cancelledAt?: string;
 }
 
 export type InventoryCategory = 'Proteínas' | 'Hortifruti' | 'Secos & Grãos' | 'Laticínios' | 'Bebidas';
@@ -93,6 +97,45 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   closedAt: string;
   guests: number;
+  cashSessionId?: string;
+}
+
+export type CashMovementType = 'suprimento' | 'sangria';
+
+export interface CashRegisterMovement {
+  id: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string;
+  operatorName: string;
+  createdAt: string;
+}
+
+export type CashRegisterSessionStatus = 'aberto' | 'fechado';
+
+export interface CashRegisterSession {
+  id: string;
+  code: string;
+  status: CashRegisterSessionStatus;
+  openedAt: string;
+  openedBy: string;
+  openingBalance: number;
+  openingNotes?: string;
+  movements: CashRegisterMovement[];
+  closedAt: string | null;
+  closedBy: string | null;
+  closingNotes?: string;
+  countedCash: number | null;
+  expectedCash: number | null;
+  cashDifference: number | null;
+  totalsByMethod: Record<PaymentMethod, number>;
+  totalSales: number;
+  transactionCount: number;
+}
+
+export interface CashRegisterState {
+  currentSession: CashRegisterSession | null;
+  history: CashRegisterSession[];
 }
 
 export type StaffRole =
@@ -144,15 +187,18 @@ export interface RestaurantState {
   reservations: Reservation[];
   inventory: InventoryItem[];
   transactions: Transaction[];
+  cashRegister: CashRegisterState;
   staff: StaffMember[];
   managerProfile: ManagerProfile;
   rolePermissions: RolePermissions;
   accessLogs: AccessLogEntry[];
+  setupCompleted: boolean;
 }
 
 export type NavSection =
   | 'overview'
   | 'pdv'
+  | 'cash'
   | 'orders'
   | 'floor'
   | 'kds'

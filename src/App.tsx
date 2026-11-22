@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Store,
+  Wallet,
   ClipboardList,
   Grid2x2,
   ChefHat,
@@ -17,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import type {
+  CashMovementType,
   InventoryItem,
   MenuItem,
   NavSection,
@@ -29,9 +31,11 @@ import type {
   StaffMember,
   StaffRole,
   TableStatus,
+  TableZone,
 } from './types.ts';
 import { OverviewView } from './components/OverviewView.tsx';
 import { PosView } from './components/PosView.tsx';
+import { CashRegisterView } from './components/CashRegisterView.tsx';
 import { OrdersView } from './components/OrdersView.tsx';
 import { FloorPlanView } from './components/FloorPlanView.tsx';
 import { TableDrawer } from './components/TableDrawer.tsx';
@@ -42,13 +46,15 @@ import { InventoryView } from './components/InventoryView.tsx';
 import { StaffView } from './components/StaffView.tsx';
 import { AccessPanelView } from './components/AccessPanelView.tsx';
 import { AccessLockScreen } from './components/AccessLockScreen.tsx';
+import { ManagerSetupScreen } from './components/ManagerSetupScreen.tsx';
 import { OrderComposerModal } from './components/OrderComposerModal.tsx';
 import { PWAInstallButton } from './components/PWAInstallButton.tsx';
 import { OfflineIndicator } from './components/OfflineIndicator.tsx';
 
 const NAV_ITEMS: Array<{ id: NavSection; label: string; Icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Visão Geral', Icon: LayoutDashboard },
-  { id: 'pdv', label: 'PDV / Caixa', Icon: Store },
+  { id: 'pdv', label: 'PDV / Vendas', Icon: Store },
+  { id: 'cash', label: 'Caixa', Icon: Wallet },
   { id: 'orders', label: 'Pedidos', Icon: ClipboardList },
   { id: 'floor', label: 'Salão & Mesas', Icon: Grid2x2 },
   { id: 'kds', label: 'Cozinha (KDS)', Icon: ChefHat },
@@ -62,6 +68,7 @@ const NAV_ITEMS: Array<{ id: NavSection; label: string; Icon: typeof LayoutDashb
 const SECTION_TITLE: Record<NavSection, string> = {
   overview: 'Visão Geral',
   pdv: 'PDV / Ponto de Venda',
+  cash: 'Abertura & Fechamento de Caixa',
   orders: 'Gestão de Pedidos',
   floor: 'Salão & Mesas',
   kds: 'Cozinha (KDS)',
@@ -88,7 +95,7 @@ export default function App() {
   const [managerEmailInput, setManagerEmailInput] = useState('');
   const [savingManager, setSavingManager] = useState(false);
   const [activeOperatorId, setActiveOperatorId] = useState<string>('s1');
-  const [terminalLocked, setTerminalLocked] = useState(false);
+  const [terminalLocked, setTerminalLocked] = useState(true);
   const [lockPreselectedId, setLockPreselectedId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [toast, setToast] = useState<string | null>(null);
@@ -140,9 +147,20 @@ export default function App() {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
-    await apiMutate(`/api/orders/${orderId}/status`, 'PATCH', { status });
-    showToast(status === 'cancelado' ? 'Pedido cancelado.' : 'Status da comanda atualizado.');
+  const handleUpdateOrderStatus = async (
+    orderId: string,
+    status: OrderStatus,
+    options?: { cancelReason?: string; releaseTableIfEmpty?: boolean },
+  ) => {
+    await apiMutate(`/api/orders/${orderId}/status`, 'PATCH', {
+      status,
+      ...(options || {}),
+    });
+    showToast(
+      status === 'cancelado'
+        ? 'Pedido cancelado.'
+        : 'Status da comanda atualizado.',
+    );
   };
 
   const handleUpdateOrder = async (
@@ -163,12 +181,28 @@ export default function App() {
     showToast(tableId ? 'Pedido associado à mesa.' : 'Pedido desvinculado da mesa.');
   };
 
+  const handleCreateTable = async (payload: {
+    number: number;
+    label: string;
+    zone: TableZone;
+    seats: number;
+  }) => {
+    await apiMutate('/api/tables', 'POST', payload);
+    showToast(`${payload.label} adicionada ao salão.`);
+  };
+
   const handleUpdateTable = async (
     tableId: string,
     payload: { status?: TableStatus; guests?: number; waiter?: string },
   ) => {
     await apiMutate(`/api/tables/${tableId}`, 'PATCH', payload);
     showToast('Mesa atualizada.');
+  };
+
+  const handleDeleteTable = async (tableId: string) => {
+    await apiMutate(`/api/tables/${tableId}`, 'DELETE');
+    setSelectedTableId(null);
+    showToast('Mesa removida do salão.');
   };
 
   const handleCloseBill = async (
@@ -234,10 +268,21 @@ export default function App() {
 
   const handleUpdateReservation = async (
     id: string,
-    payload: { status?: ReservationStatus; tableId?: string | null },
+    payload: { status?: ReservationStatus; tableId?: string | null; cancelReason?: string },
   ) => {
     await apiMutate(`/api/reservations/${id}`, 'PATCH', payload);
-    showToast('Reserva atualizada.');
+    showToast(
+      payload.status === 'cancelada'
+        ? 'Reserva cancelada.'
+        : payload.status === 'confirmada'
+          ? 'Reserva reativada.'
+          : 'Reserva atualizada.',
+    );
+  };
+
+  const handleDeleteReservation = async (id: string) => {
+    await apiMutate(`/api/reservations/${id}`, 'DELETE');
+    showToast('Reserva removida da agenda.');
   };
 
   const handleAdjustStock = async (id: string, delta: number) => {
@@ -271,18 +316,92 @@ export default function App() {
     showToast(`Permissões de ${role} atualizadas.`);
   };
 
+  const handleSetupManager = async (payload: {
+    name: string;
+    email: string;
+    pin: string;
+    confirmPin: string;
+  }) => {
+    const res = await fetch('/api/setup/manager', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      operator?: StaffMember;
+      state?: RestaurantState;
+    };
+    if (!res.ok || !data.operator || !data.state) {
+      throw new Error(data.error || 'Erro ao concluir cadastro inicial.');
+    }
+    setState(data.state);
+    setActiveOperatorId(data.operator.id);
+    setTerminalLocked(false);
+    setActiveNav('overview');
+    showToast(`Cadastro concluído! Bem-vindo(a), ${data.operator.name}.`);
+  };
+
+  const handleOpenCashRegister = async (payload: {
+    openingBalance: number;
+    openedBy: string;
+    openingNotes?: string;
+  }) => {
+    await apiMutate('/api/cash/open', 'POST', payload);
+    showToast('Caixa aberto para o turno.');
+  };
+
+  const handleCashMovement = async (payload: {
+    type: CashMovementType;
+    amount: number;
+    reason: string;
+    operatorName: string;
+  }) => {
+    await apiMutate('/api/cash/movement', 'POST', payload);
+    showToast(
+      payload.type === 'suprimento'
+        ? 'Suprimento registrado no caixa.'
+        : 'Sangria registrada no caixa.',
+    );
+  };
+
+  const handleCloseCashRegister = async (payload: {
+    countedCash: number;
+    closedBy: string;
+    closingNotes?: string;
+  }) => {
+    await apiMutate('/api/cash/close', 'POST', payload);
+    showToast('Caixa fechado e conferência registrada.');
+  };
+
+  const handleResetSystem = async () => {
+    await apiMutate('/api/reset', 'POST');
+    setSelectedTableId(null);
+    setActiveNav('overview');
+    setTerminalLocked(true);
+    showToast('Sistema limpo com sucesso.');
+  };
+
   const handleLockTerminal = async (preselectedStaffId?: string) => {
-    setLockPreselectedId(preselectedStaffId || activeOperatorId);
+    setLockPreselectedId(preselectedStaffId ?? null);
     setTerminalLocked(true);
     setMobileMenuOpen(false);
     await apiMutate('/api/access/lock', 'POST', { staffId: activeOperatorId }).catch(() => {});
   };
 
-  const handleAuthenticateOperator = async (staffId: string, pin: string) => {
+  const handleAuthenticateOperator = async ({
+    role,
+    pin,
+    staffId,
+  }: {
+    role: StaffRole;
+    pin: string;
+    staffId?: string;
+  }) => {
     const res = await fetch('/api/access/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ staffId, pin }),
+      body: JSON.stringify({ role, pin, staffId }),
     });
     const data = (await res.json().catch(() => ({}))) as {
       error?: string;
@@ -304,7 +423,7 @@ export default function App() {
     if (!allowed.includes(activeNav)) {
       setActiveNav(allowed[0] || 'overview');
     }
-    showToast(`Sessão iniciada como ${data.operator.name}.`);
+    showToast(`Sessão iniciada como ${data.operator.name} (${data.operator.role}).`);
   };
 
   const openManagerModal = () => {
@@ -379,6 +498,15 @@ export default function App() {
 
   const visibleNavItems = NAV_ITEMS.filter((item) => allowedModules.includes(item.id));
 
+  if (state && !state.setupCompleted) {
+    return (
+      <>
+        <ManagerSetupScreen onCompleteSetup={handleSetupManager} />
+        <OfflineIndicator />
+      </>
+    );
+  }
+
   if (state && terminalLocked) {
     return (
       <>
@@ -386,7 +514,6 @@ export default function App() {
           state={state}
           initialStaffId={lockPreselectedId}
           onAuthenticate={handleAuthenticateOperator}
-          onCancelUnlock={() => setTerminalLocked(false)}
         />
         <OfflineIndicator />
       </>
@@ -599,6 +726,17 @@ export default function App() {
                   onDirectSale={handleDirectPosSale}
                   onSendToTable={handleSubmitOrder}
                   onCloseTableBill={handleCloseBill}
+                  onNavigateToCash={() => setActiveNav('cash')}
+                />
+              )}
+
+              {activeNav === 'cash' && (
+                <CashRegisterView
+                  state={state}
+                  operatorName={currentOperator.name}
+                  onOpenCash={handleOpenCashRegister}
+                  onAddMovement={handleCashMovement}
+                  onCloseCash={handleCloseCashRegister}
                 />
               )}
 
@@ -620,6 +758,7 @@ export default function App() {
                   selectedTableId={selectedTableId}
                   onSelectTable={setSelectedTableId}
                   onQuickStatusChange={(id, status) => handleUpdateTable(id, { status })}
+                  onAddTable={handleCreateTable}
                 />
               )}
 
@@ -645,6 +784,7 @@ export default function App() {
                   state={state}
                   onCreateReservation={handleCreateReservation}
                   onUpdateReservation={handleUpdateReservation}
+                  onDeleteReservation={handleDeleteReservation}
                 />
               )}
 
@@ -672,6 +812,7 @@ export default function App() {
                   onLockTerminal={handleLockTerminal}
                   onUpdateStaffAccess={handleUpdateStaffMember}
                   onUpdateRolePermissions={handleUpdateRolePermissions}
+                  onResetSystem={handleResetSystem}
                 />
               )}
             </>
@@ -691,6 +832,7 @@ export default function App() {
           onAssignOrderToTable={handleAssignOrderToTable}
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onUpdateTable={handleUpdateTable}
+          onDeleteTable={handleDeleteTable}
           onCloseBill={handleCloseBill}
         />
       )}
@@ -708,6 +850,7 @@ export default function App() {
           }}
           onSubmitOrder={handleSubmitOrder}
           onUpdateOrder={handleUpdateOrder}
+          onCancelOrder={(orderId) => handleUpdateOrderStatus(orderId, 'cancelado')}
         />
       )}
 

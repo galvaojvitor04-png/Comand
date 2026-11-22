@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Receipt, Users, Clock, CheckCircle2, Pencil, Link2, XCircle } from 'lucide-react';
+import { X, Plus, Receipt, Users, Clock, CheckCircle2, Pencil, Link2, XCircle, Trash2 } from 'lucide-react';
 import type { Order, OrderStatus, PaymentMethod, RestaurantState, TableStatus } from '../types.ts';
 import { formatCurrency, formatElapsed, getElapsedMinutes } from '../utils/format.ts';
 
@@ -16,6 +16,7 @@ interface TableDrawerProps {
     tableId: string,
     payload: { status?: TableStatus; guests?: number; waiter?: string },
   ) => Promise<void>;
+  onDeleteTable?: (tableId: string) => Promise<void>;
   onCloseBill: (
     tableId: string,
     payload: {
@@ -44,6 +45,7 @@ export function TableDrawer({
   onAssignOrderToTable,
   onUpdateOrderStatus,
   onUpdateTable,
+  onDeleteTable,
   onCloseBill,
 }: TableDrawerProps) {
   const [includeServiceFee, setIncludeServiceFee] = useState(true);
@@ -55,6 +57,8 @@ export function TableDrawer({
   const [waiterInput, setWaiterInput] = useState('');
   const [guestsInput, setGuestsInput] = useState<number>(2);
   const [orderToLinkId, setOrderToLinkId] = useState<string>('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmCancelOrderId, setConfirmCancelOrderId] = useState<string | null>(null);
 
   if (!tableId) return null;
   const table = state.tables.find((t) => t.id === tableId);
@@ -292,22 +296,53 @@ export function TableDrawer({
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => onEditOrder(order)}
-                          title="Editar pedido"
-                          className="p-1 text-slate-400 hover:text-slate-900 rounded"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateOrderStatus(order.id, 'cancelado')}
-                          title="Cancelar pedido"
-                          className="p-1 text-slate-400 hover:text-red-600 rounded"
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                        </button>
+                        {confirmCancelOrderId === order.id ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={submitting}
+                              onClick={async () => {
+                                setSubmitting(true);
+                                try {
+                                  await onUpdateOrderStatus(order.id, 'cancelado');
+                                  setConfirmCancelOrderId(null);
+                                } finally {
+                                  setSubmitting(false);
+                                }
+                              }}
+                              className="px-2 py-0.5 text-[11px] font-semibold text-white bg-red-600 hover:bg-red-700 rounded disabled:opacity-50"
+                            >
+                              Cancelar pedido
+                            </button>
+                            <button
+                              type="button"
+                              disabled={submitting}
+                              onClick={() => setConfirmCancelOrderId(null)}
+                              className="px-1.5 py-0.5 text-[11px] text-slate-600 hover:text-slate-900"
+                            >
+                              Voltar
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onEditOrder(order)}
+                              title="Editar pedido"
+                              className="p-1 text-slate-400 hover:text-slate-900 rounded"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmCancelOrderId(order.id)}
+                              title="Cancelar pedido"
+                              className="p-1 text-slate-400 hover:text-red-600 rounded"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <ul className="space-y-1.5">
@@ -405,6 +440,53 @@ export function TableDrawer({
                     Marcar como "Em Limpeza" antes de liberar
                   </label>
                 </div>
+              )}
+            </div>
+          )}
+          {onDeleteTable && table.status === 'livre' && openOrders.length === 0 && (
+            <div className="pt-4 border-t border-slate-200">
+              {confirmingDelete ? (
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 space-y-2.5">
+                  <p className="text-xs font-medium text-red-800">
+                    Remover {table.label} permanentemente do salão?
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={async () => {
+                        setSubmitting(true);
+                        try {
+                          await onDeleteTable(table.id);
+                          setConfirmingDelete(false);
+                          onClose();
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                    >
+                      Confirmar Remoção
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => setConfirmingDelete(false)}
+                      className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remover mesa do salão
+                </button>
               )}
             </div>
           )}

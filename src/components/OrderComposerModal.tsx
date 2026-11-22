@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, Minus, Search, Send, Save } from 'lucide-react';
+import { X, Plus, Minus, Search, Send, Save, XCircle } from 'lucide-react';
 import type { MenuCategory, MenuItem, Order, RestaurantState } from '../types.ts';
 import { formatCurrency } from '../utils/format.ts';
 
@@ -31,6 +31,7 @@ interface OrderComposerModalProps {
       items: Array<{ menuItemId: string; quantity: number; notes?: string }>;
     },
   ) => Promise<void>;
+  onCancelOrder?: (orderId: string) => Promise<void>;
 }
 
 const CATEGORIES: Array<'Todos' | MenuCategory> = [
@@ -49,6 +50,7 @@ export function OrderComposerModal({
   onClose,
   onSubmitOrder,
   onUpdateOrder,
+  onCancelOrder,
 }: OrderComposerModalProps) {
   const [selectedTableId, setSelectedTableId] = useState<string>('');
   const [origin, setOrigin] = useState<'Salão' | 'Balcão' | 'Retirada'>('Salão');
@@ -58,6 +60,7 @@ export function OrderComposerModal({
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -97,6 +100,7 @@ export function OrderComposerModal({
       setCart([]);
     }
     setSearch('');
+    setConfirmCancel(false);
   }, [open, editingOrder, initialTableId, state.tables, state.menu]);
 
   if (!open) return null;
@@ -407,6 +411,46 @@ export function OrderComposerModal({
                     ? 'Salvar Alterações do Pedido'
                     : 'Enviar para Cozinha'}
               </button>
+
+              {editingOrder && !editingOrder.paid && onCancelOrder && (
+                confirmCancel ? (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={async () => {
+                        setSubmitting(true);
+                        try {
+                          await onCancelOrder(editingOrder.id);
+                          onClose();
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="flex-1 py-2 px-3 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                    >
+                      Confirmar Cancelamento
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => setConfirmCancel(false)}
+                      className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
+                    >
+                      Voltar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmCancel(true)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    Cancelar Este Pedido
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>

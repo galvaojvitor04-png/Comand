@@ -26,6 +26,7 @@ export function KitchenKDSView({
 }: KitchenKDSViewProps) {
   const [filter, setFilter] = useState<KdsFilter>('ativos');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   const orders = state.orders.filter((order) => {
     if (order.status === 'cancelado') return false;
@@ -132,39 +133,66 @@ export function KitchenKDSView({
           <span className="text-xs text-slate-500 truncate">{order.waiter}</span>
 
           <div className="flex items-center gap-2 shrink-0">
-            {order.status === 'pendente' && (
+            {confirmCancelId === order.id ? (
+              <div className="inline-flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={busyId === order.id}
+                  onClick={async () => {
+                    await handleTransition(order.id, 'cancelado');
+                    setConfirmCancelId(null);
+                  }}
+                  className="px-2.5 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                >
+                  Confirmar Cancelamento
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === order.id}
+                  onClick={() => setConfirmCancelId(null)}
+                  className="px-2 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
+                >
+                  Voltar
+                </button>
+              </div>
+            ) : (
               <>
-                <button
-                  type="button"
-                  disabled={busyId === order.id}
-                  onClick={() => handleTransition(order.id, 'cancelado')}
-                  title="Cancelar comanda"
-                  className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
-                >
-                  <XCircle className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === order.id}
-                  onClick={() => handleTransition(order.id, 'preparo')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  <Flame className="w-3.5 h-3.5" />
-                  Iniciar Preparo
-                </button>
-              </>
-            )}
+                {!order.paid && (order.status === 'pendente' || order.status === 'preparo') && (
+                  <button
+                    type="button"
+                    disabled={busyId === order.id}
+                    onClick={() => setConfirmCancelId(order.id)}
+                    title="Cancelar comanda"
+                    className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                )}
 
-            {order.status === 'preparo' && (
-              <button
-                type="button"
-                disabled={busyId === order.id}
-                onClick={() => handleTransition(order.id, 'pronto')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Marcar Pronto
-              </button>
+                {order.status === 'pendente' && (
+                  <button
+                    type="button"
+                    disabled={busyId === order.id}
+                    onClick={() => handleTransition(order.id, 'preparo')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Flame className="w-3.5 h-3.5" />
+                    Iniciar Preparo
+                  </button>
+                )}
+
+                {order.status === 'preparo' && (
+                  <button
+                    type="button"
+                    disabled={busyId === order.id}
+                    onClick={() => handleTransition(order.id, 'pronto')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Marcar Pronto
+                  </button>
+                )}
+              </>
             )}
 
             {order.status === 'pronto' && (

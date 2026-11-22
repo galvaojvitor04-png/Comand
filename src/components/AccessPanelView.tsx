@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { Lock, Eye, EyeOff, ShieldCheck, KeyRound, UserCheck, UserX } from 'lucide-react';
+import {
+  Lock,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  KeyRound,
+  UserCheck,
+  UserX,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
 import type { NavSection, RestaurantState, StaffMember, StaffRole } from '../types.ts';
 import { formatTimeShort } from '../utils/format.ts';
 
@@ -12,6 +22,7 @@ interface AccessPanelViewProps {
     payload: { pin?: string; accessEnabled?: boolean },
   ) => Promise<void>;
   onUpdateRolePermissions: (role: StaffRole, modules: NavSection[]) => Promise<void>;
+  onResetSystem: () => Promise<void>;
 }
 
 const ALL_ROLES: StaffRole[] = [
@@ -26,6 +37,7 @@ const ALL_ROLES: StaffRole[] = [
 const MODULE_COLUMNS: Array<{ id: NavSection; label: string }> = [
   { id: 'overview', label: 'Visão Geral' },
   { id: 'pdv', label: 'PDV' },
+  { id: 'cash', label: 'Caixa' },
   { id: 'orders', label: 'Pedidos' },
   { id: 'floor', label: 'Mesas' },
   { id: 'kds', label: 'Cozinha' },
@@ -42,11 +54,14 @@ export function AccessPanelView({
   onLockTerminal,
   onUpdateStaffAccess,
   onUpdateRolePermissions,
+  onResetSystem,
 }: AccessPanelViewProps) {
   const [revealedPins, setRevealedPins] = useState<Record<string, boolean>>({});
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
   const [pinDraft, setPinDraft] = useState('');
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const staffList = state.staff || [];
   const enabledCount = staffList.filter((s) => s.accessEnabled !== false).length;
@@ -60,7 +75,8 @@ export function AccessPanelView({
 
   const startPinEdit = (member: StaffMember) => {
     setEditingPinId(member.id);
-    setPinDraft(member.pin || '0000');
+    const isManager = member.id === 's1' || member.role === 'Gerente';
+    setPinDraft(isManager ? '' : member.pin || '');
   };
 
   const savePin = async (staffId: string) => {
@@ -196,7 +212,8 @@ export function AccessPanelView({
                       {isEditing ? (
                         <div className="inline-flex items-center gap-2">
                           <input
-                            type="text"
+                            type={isGM || member.role === 'Gerente' ? 'password' : 'text'}
+                            inputMode="numeric"
                             maxLength={4}
                             value={pinDraft}
                             onChange={(e) =>
@@ -221,10 +238,27 @@ export function AccessPanelView({
                             Cancelar
                           </button>
                         </div>
+                      ) : isGM || member.role === 'Gerente' ? (
+                        <div className="inline-flex items-center gap-2 font-mono text-xs tabular-nums">
+                          <span className="text-slate-900 font-semibold tracking-widest">
+                            ••••
+                          </span>
+                          <span className="font-sans text-[11px] text-slate-400">
+                            Sigiloso
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => startPinEdit(member)}
+                            className="inline-flex items-center gap-1 text-[11px] font-sans font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
+                          >
+                            <KeyRound className="w-3 h-3" />
+                            Alterar
+                          </button>
+                        </div>
                       ) : (
                         <div className="inline-flex items-center gap-2 font-mono text-xs tabular-nums">
                           <span className="text-slate-900 font-semibold tracking-widest">
-                            {isRevealed ? member.pin || '0000' : '••••'}
+                            {isRevealed ? member.pin || '••••' : '••••'}
                           </span>
                           <button
                             type="button"
@@ -412,6 +446,61 @@ export function AccessPanelView({
           </div>
         )}
       </section>
+
+      {/* Section 4: Limpeza Completa do Sistema */}
+      {currentOperator.role === 'Gerente' && (
+        <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              Limpar Dados do Sistema
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Apaga todas as mesas, cardápio, pedidos, reservas, estoque, vendas, caixas e reinicia para o cadastro do Gerente Geral.
+            </p>
+          </div>
+
+          {!confirmingReset ? (
+            <button
+              type="button"
+              onClick={() => setConfirmingReset(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Limpar Todos os Dados
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700 mr-1">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Confirmar limpeza total?
+              </span>
+              <button
+                type="button"
+                onClick={() => setConfirmingReset(false)}
+                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={resetting}
+                onClick={async () => {
+                  setResetting(true);
+                  try {
+                    await onResetSystem();
+                    setConfirmingReset(false);
+                  } finally {
+                    setResetting(false);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-40"
+              >
+                {resetting ? 'Limpando...' : 'Sim, Limpar Tudo'}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

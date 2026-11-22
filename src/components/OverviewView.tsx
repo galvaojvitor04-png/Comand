@@ -55,18 +55,34 @@ export function OverviewView({
     .filter((r) => r.status === 'confirmada' || r.status === 'aguardando')
     .slice(0, 4);
 
-  // Build hourly revenue curve anchored to real transactions + open tables
-  const hourlyBuckets = [
-    { hour: '11h', amount: 340 },
-    { hour: '12h', amount: 890 },
-    { hour: '13h', amount: 1120 },
-    { hour: '14h', amount: 640 },
-    { hour: '18h', amount: 420 },
-    { hour: '19h', amount: 980 },
-    { hour: '20h', amount: Math.max(480, Math.round(closedRevenue * 0.45 + openOrdersSubtotal)) },
-    { hour: '21h', amount: Math.max(260, Math.round(openOrdersSubtotal * 0.65)) },
-  ];
-  const maxHourly = Math.max(...hourlyBuckets.map((b) => b.amount), 1);
+  // Build hourly revenue curve anchored to real transactions
+  const targetHours = [11, 12, 13, 14, 18, 19, 20, 21];
+  const hourMap = new Map<number, number>(targetHours.map((h) => [h, 0]));
+  for (const tx of state.transactions) {
+    const dt = new Date(tx.closedAt);
+    if (!Number.isNaN(dt.getTime())) {
+      const h = dt.getHours();
+      let closest = targetHours[0];
+      let bestDiff = Math.abs(h - closest);
+      for (const candidate of targetHours) {
+        const diff = Math.abs(h - candidate);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          closest = candidate;
+        }
+      }
+      hourMap.set(closest, (hourMap.get(closest) || 0) + tx.total);
+    }
+  }
+  const hourlyBuckets = targetHours.map((h) => ({
+    hour: `${h}h`,
+    amount: Number((hourMap.get(h) || 0).toFixed(2)),
+  }));
+  const maxHourly = Math.max(...hourlyBuckets.map((b) => b.amount), 0);
+  const peakBucket = hourlyBuckets.reduce(
+    (best, cur) => (cur.amount > best.amount ? cur : best),
+    hourlyBuckets[0],
+  );
 
   return (
     <div className="space-y-8">
@@ -250,16 +266,21 @@ export function OverviewView({
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Movimento por Horário</h3>
-                <p className="text-xs text-slate-500">Distribuição estimada do turno (almoço e jantar)</p>
+                <p className="text-xs text-slate-500">Distribuição real das vendas fechadas no turno</p>
               </div>
               <span className="text-xs font-mono text-slate-500 tabular-nums">
-                Pico 13h · {formatCurrency(1120)}
+                {maxHourly > 0
+                  ? `Pico ${peakBucket.hour} · ${formatCurrency(peakBucket.amount)}`
+                  : 'Sem vendas fechadas ainda'}
               </span>
             </div>
             <div className="grid grid-cols-8 gap-3 items-end h-32 pt-2">
               {hourlyBuckets.map((bucket) => {
-                const heightPct = Math.max(12, Math.round((bucket.amount / maxHourly) * 100));
-                const isPeak = bucket.amount === maxHourly;
+                const heightPct =
+                  maxHourly > 0
+                    ? Math.max(8, Math.round((bucket.amount / maxHourly) * 100))
+                    : 6;
+                const isPeak = maxHourly > 0 && bucket.amount === maxHourly;
                 return (
                   <div key={bucket.hour} className="flex flex-col items-center gap-2 h-full justify-end">
                     <div className="w-full flex items-end justify-center h-24">
@@ -378,21 +399,25 @@ export function OverviewView({
             <div className="px-6 py-4 border-b border-slate-200">
               <h2 className="text-base font-semibold text-slate-900">Últimos Fechamentos</h2>
             </div>
-            <ul className="divide-y divide-slate-100">
-              {state.transactions.slice(0, 4).map((tx) => (
-                <li key={tx.id} className="px-6 py-3 flex items-center justify-between gap-3 text-xs">
-                  <div>
-                    <span className="font-medium text-slate-900">{tx.tableLabel}</span>
-                    <span className="text-slate-400 mx-1.5">·</span>
-                    <span className="text-slate-500">{tx.paymentMethod}</span>
-                  </div>
-                  <div className="text-right font-mono tabular-nums">
-                    <span className="font-semibold text-slate-900">{formatCurrency(tx.total)}</span>
-                    <span className="text-slate-400 ml-2">{formatTimeShort(tx.closedAt)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {state.transactions.length === 0 ? (
+              <div className="p-6 text-xs text-slate-500">Nenhuma conta fechada neste turno.</div>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {state.transactions.slice(0, 4).map((tx) => (
+                  <li key={tx.id} className="px-6 py-3 flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <span className="font-medium text-slate-900">{tx.tableLabel}</span>
+                      <span className="text-slate-400 mx-1.5">·</span>
+                      <span className="text-slate-500">{tx.paymentMethod}</span>
+                    </div>
+                    <div className="text-right font-mono tabular-nums">
+                      <span className="font-semibold text-slate-900">{formatCurrency(tx.total)}</span>
+                      <span className="text-slate-400 ml-2">{formatTimeShort(tx.closedAt)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </div>
       </div>
