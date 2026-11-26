@@ -25,8 +25,8 @@ export default defineConfig(() => {
           short_name: 'Comanda&Co',
           description:
             'Sistema completo de gestão para restaurantes: PDV, mesas, pedidos, cozinha (KDS), cardápio, reservas, estoque e equipe.',
-          theme_color: '#0f766e',
-          background_color: '#f8fafc',
+          theme_color: '#065f46',
+          background_color: '#fafaf9',
           display: 'standalone',
           start_url: '/',
           scope: '/',
@@ -105,9 +105,7 @@ export default defineConfig(() => {
           type: 'module',
         },
       }),
-      // Copies src/assets into dist/ so root-relative URLs like
-      // "/src/assets/images/..." (e.g. generate_image output) still resolve
-      // in production builds. Do not remove.
+      // Copia src/assets para dist/ para preservar URLs relativas em builds de produção.
       {
         name: 'copy-unbundled-src-assets',
         apply: 'build',
@@ -130,10 +128,8 @@ export default defineConfig(() => {
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
+      // HMR e observador de arquivos controlados pela variável DISABLE_HMR.
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };

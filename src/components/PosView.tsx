@@ -40,6 +40,7 @@ interface ReceiptData {
 
 interface PosViewProps {
   state: RestaurantState;
+  operatorName?: string;
   onDirectSale: (payload: {
     customerLabel: string;
     origin: 'Balcão' | 'Retirada';
@@ -85,6 +86,7 @@ const PAYMENT_OPTIONS: Array<{ value: PaymentMethod; label: string; Icon: typeof
 
 export function PosView({
   state,
+  operatorName: initialOperatorName,
   onDirectSale,
   onSendToTable,
   onCloseTableBill,
@@ -95,15 +97,15 @@ export function PosView({
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<PosCartLine[]>([]);
 
-  // Direct sale / Table dispatch fields
   const [origin, setOrigin] = useState<'Balcão' | 'Retirada'>('Balcão');
   const [customerLabel, setCustomerLabel] = useState('');
   const [selectedTableId, setSelectedTableId] = useState<string>(
     state.tables[0]?.id || '',
   );
-  const [operatorName, setOperatorName] = useState('Caixa PDV');
+  const [operatorName, setOperatorName] = useState(
+    initialOperatorName || 'Caixa PDV',
+  );
 
-  // Checkout & payment fields
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cartão de Crédito');
   const [discountInput, setDiscountInput] = useState('0');
   const [cashReceivedInput, setCashReceivedInput] = useState('');
@@ -235,7 +237,7 @@ export function PosView({
     try {
       const label =
         customerLabel.trim() ||
-        (origin === 'Retirada' ? 'Retirada Balcão' : 'Balcão Rápido');
+        (origin === 'Retirada' ? 'Retirada Balcão' : 'Balcão');
       await onDirectSale({
         customerLabel: label,
         origin,
@@ -272,7 +274,7 @@ export function PosView({
       setDiscountInput('0');
       setCashReceivedInput('');
     } catch (err) {
-      setPosError(err instanceof Error ? err.message : 'Erro ao finalizar venda.');
+      setPosError(err instanceof Error ? err.message : 'Não foi possível concluir a venda.');
     } finally {
       setSubmitting(false);
     }
@@ -338,7 +340,7 @@ export function PosView({
       setCashReceivedInput('');
       setSplitPeople('1');
     } catch (err) {
-      setPosError(err instanceof Error ? err.message : 'Erro ao receber conta.');
+      setPosError(err instanceof Error ? err.message : 'Não foi possível receber a conta.');
     } finally {
       setSubmitting(false);
     }
@@ -346,28 +348,27 @@ export function PosView({
 
   return (
     <div className="space-y-6">
-      {/* Cash Register Status Bar */}
       <section
-        className={`px-5 py-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+        className={`px-5 py-3.5 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
           isCashOpen
-            ? 'bg-white border-slate-200'
-            : 'bg-amber-50/80 border-amber-200'
+            ? 'bg-white border-stone-200'
+            : 'bg-amber-50/70 border-amber-200'
         }`}
       >
         <div className="flex items-center gap-3 text-xs">
           {isCashOpen ? (
             <>
-              <LockOpen className="w-4 h-4 text-emerald-700 shrink-0" />
-              <div className="text-slate-700">
-                <span className="font-semibold text-slate-900">
-                  Caixa {currentCash.code} Aberto
+              <LockOpen className="w-4 h-4 text-emerald-800 shrink-0" />
+              <div className="text-stone-700">
+                <span className="font-semibold text-stone-900">
+                  Caixa {currentCash.code} aberto
                 </span>
-                <span className="mx-1.5 text-slate-300">·</span>
+                <span className="mx-1.5 text-stone-300">·</span>
                 <span>Aberto às {formatTimeShort(currentCash.openedAt)} por {currentCash.openedBy}</span>
-                <span className="mx-1.5 text-slate-300">·</span>
+                <span className="mx-1.5 text-stone-300">·</span>
                 <span>
-                  Gaveta esperada:{' '}
-                  <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                  Gaveta prevista:{' '}
+                  <span className="font-mono font-semibold text-stone-900 tabular-nums">
                     {formatCurrency(currentCash.expectedCash ?? currentCash.openingBalance)}
                   </span>
                 </span>
@@ -377,10 +378,10 @@ export function PosView({
             <>
               <Lock className="w-4 h-4 text-amber-700 shrink-0" />
               <div className="text-amber-900">
-                <span className="font-semibold">Caixa Fechado</span>
+                <span className="font-semibold">Caixa fechado</span>
                 <span className="mx-1.5 text-amber-400">·</span>
                 <span>
-                  Realize a abertura de caixa para habilitar recebimentos diretos e fechamento de mesas.
+                  Abra o caixa para receber vendas no balcão ou fechar mesas.
                 </span>
               </div>
             </>
@@ -390,20 +391,20 @@ export function PosView({
         <button
           type="button"
           onClick={onNavigateToCash}
-          className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+          className={`px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
             isCashOpen
-              ? 'text-slate-700 bg-slate-100 hover:bg-slate-200'
-              : 'text-white bg-teal-700 hover:bg-teal-800'
+              ? 'text-stone-700 bg-stone-100 hover:bg-stone-200'
+              : 'text-white bg-emerald-800 hover:bg-emerald-900'
           }`}
         >
-          {isCashOpen ? 'Conferência & Fechamento' : 'Abrir Caixa Agora'}
+          {isCashOpen ? 'Conferir Caixa' : 'Abrir Caixa'}
         </button>
       </section>
 
       {posError && (
         <div
           role="alert"
-          className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-red-700 flex items-center justify-between gap-3"
+          className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-700 flex items-center justify-between gap-3"
         >
           <span className="inline-flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -419,38 +420,37 @@ export function PosView({
         </div>
       )}
 
-      {/* Caixa do Turno Strip */}
-      <section className="grid grid-cols-2 lg:grid-cols-5 bg-white border border-slate-200 rounded-xl divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+      <section className="grid grid-cols-2 lg:grid-cols-5 bg-white border border-stone-200 rounded-lg divide-y lg:divide-y-0 lg:divide-x divide-stone-200">
         <div className="p-4">
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-stone-500">
             {isCashOpen ? `Caixa ${currentCash.code}` : 'Caixa do Turno'}
           </div>
-          <div className="mt-1 text-lg font-semibold text-slate-900 font-mono tabular-nums">
+          <div className="mt-1 text-lg font-semibold text-stone-900 font-mono tabular-nums">
             {formatCurrency(todayTotal)}
           </div>
         </div>
         <div className="p-4">
-          <div className="text-xs text-slate-500">Cartões (Créd./Déb.)</div>
-          <div className="mt-1 text-base font-semibold text-slate-900 font-mono tabular-nums">
+          <div className="text-xs text-stone-500">Cartões</div>
+          <div className="mt-1 text-base font-semibold text-stone-900 font-mono tabular-nums">
             {formatCurrency(cardTotal)}
           </div>
         </div>
         <div className="p-4">
-          <div className="text-xs text-slate-500">PIX</div>
-          <div className="mt-1 text-base font-semibold text-slate-900 font-mono tabular-nums">
+          <div className="text-xs text-stone-500">PIX</div>
+          <div className="mt-1 text-base font-semibold text-stone-900 font-mono tabular-nums">
             {formatCurrency(pixTotal)}
           </div>
         </div>
         <div className="p-4">
-          <div className="text-xs text-slate-500">Dinheiro</div>
-          <div className="mt-1 text-base font-semibold text-slate-900 font-mono tabular-nums">
+          <div className="text-xs text-stone-500">Dinheiro</div>
+          <div className="mt-1 text-base font-semibold text-stone-900 font-mono tabular-nums">
             {formatCurrency(cashTotal)}
           </div>
         </div>
         <div className="p-4 col-span-2 lg:col-span-1 flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-500">Vendas Fechadas</div>
-            <div className="mt-1 text-base font-semibold text-slate-900 font-mono tabular-nums">
+            <div className="text-xs text-stone-500">Vendas</div>
+            <div className="mt-1 text-base font-semibold text-stone-900 font-mono tabular-nums">
               {sessionTxs.length}
             </div>
           </div>
@@ -458,46 +458,44 @@ export function PosView({
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors whitespace-nowrap"
             >
               <Printer className="w-3.5 h-3.5" />
-              Último Cupom
+              Cupom
             </button>
           )}
         </div>
       </section>
 
-      {/* Main PDV 2-Column Workspace */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Left: Product Grid */}
-        <section className="xl:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-slate-200 space-y-3">
+        <section className="xl:col-span-7 bg-white border border-stone-200 rounded-lg overflow-hidden">
+          <div className="p-4 border-b border-stone-200 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar item por nome ou SKU (ex: ENT-01, Risoto)..."
-                  className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+                  placeholder="Buscar por nome ou código..."
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-stone-50 border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
                 />
               </div>
-              <div className="text-xs text-slate-500 font-mono tabular-nums whitespace-nowrap">
-                {filteredMenu.filter((m) => m.available).length} itens disponíveis
+              <div className="text-xs text-stone-500 font-mono tabular-nums whitespace-nowrap">
+                {filteredMenu.filter((m) => m.available).length} disponíveis
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-1 p-1 bg-slate-100 rounded-lg">
+            <div className="flex flex-wrap gap-1 p-1 bg-stone-100 rounded-md">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setCategoryFilter(cat)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors whitespace-nowrap shrink-0 ${
                     categoryFilter === cat
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-stone-900 border border-stone-200'
+                      : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
                   {cat}
@@ -506,63 +504,69 @@ export function PosView({
             </div>
           </div>
 
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[640px] overflow-y-auto">
-            {filteredMenu.map((dish) => {
-              const inCart = cart.find((line) => line.menuItem.id === dish.id);
-              return (
-                <button
-                  key={dish.id}
-                  type="button"
-                  disabled={!dish.available}
-                  onClick={() => addToCart(dish)}
-                  className={`p-4 rounded-xl border text-left flex flex-col justify-between gap-3 transition-all ${
-                    !dish.available
-                      ? 'bg-slate-50 border-slate-200 opacity-55 cursor-not-allowed'
-                      : inCart
-                        ? 'bg-teal-50/40 border-teal-700 hover:bg-teal-50/70'
-                        : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
-                      <span className="font-mono">{dish.sku}</span>
-                      <span>{dish.available ? `${dish.prepTimeMin} min` : 'Esgotado'}</span>
+          {filteredMenu.length === 0 ? (
+            <div className="p-12 text-center text-xs text-stone-500">
+              {state.menu.length === 0
+                ? 'Nenhum item cadastrado no cardápio.'
+                : 'Nenhum produto encontrado para o filtro atual.'}
+            </div>
+          ) : (
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[640px] overflow-y-auto">
+              {filteredMenu.map((dish) => {
+                const inCart = cart.find((line) => line.menuItem.id === dish.id);
+                return (
+                  <button
+                    key={dish.id}
+                    type="button"
+                    disabled={!dish.available}
+                    onClick={() => addToCart(dish)}
+                    className={`p-3.5 rounded-lg border text-left flex flex-col justify-between gap-3 transition-colors ${
+                      !dish.available
+                        ? 'bg-stone-50 border-stone-200 opacity-55 cursor-not-allowed'
+                        : inCart
+                          ? 'bg-emerald-50/40 border-emerald-800'
+                          : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50/60'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
+                        <span className="font-mono">{dish.sku}</span>
+                        <span>{dish.available ? `${dish.prepTimeMin} min` : 'Esgotado'}</span>
+                      </div>
+                      <h3 className="mt-1.5 text-sm font-semibold text-stone-900 leading-snug">
+                        {dish.name}
+                      </h3>
                     </div>
-                    <h3 className="mt-1.5 text-sm font-semibold text-slate-900 leading-snug">
-                      {dish.name}
-                    </h3>
-                  </div>
 
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <span className="font-mono text-sm font-semibold text-slate-900 tabular-nums">
-                      {formatCurrency(dish.price)}
-                    </span>
-                    {inCart ? (
-                      <span className="font-mono text-xs font-semibold text-teal-800 tabular-nums">
-                        {inCart.quantity} no cupom
+                    <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
+                      <span className="font-mono text-sm font-semibold text-stone-900 tabular-nums">
+                        {formatCurrency(dish.price)}
                       </span>
-                    ) : (
-                      <span className="text-xs font-medium text-teal-700">+ Adicionar</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                      {inCart ? (
+                        <span className="font-mono text-xs font-semibold text-emerald-800 tabular-nums">
+                          {inCart.quantity}×
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium text-emerald-800">+ Incluir</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
 
-        {/* Right: POS Terminal / Register */}
-        <section className="xl:col-span-5 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
-          {/* Mode Switcher */}
-          <div className="p-4 border-b border-slate-200 space-y-3">
-            <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-lg">
+        <section className="xl:col-span-5 bg-white border border-stone-200 rounded-lg overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-stone-200 space-y-3">
+            <div className="grid grid-cols-3 gap-1 p-1 bg-stone-100 rounded-md">
               <button
                 type="button"
                 onClick={() => setMode('balcao')}
-                className={`py-2 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`py-2 px-2 text-xs font-medium rounded-sm transition-colors whitespace-nowrap ${
                   mode === 'balcao'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-stone-900 border border-stone-200'
+                    : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 Venda Direta
@@ -570,10 +574,10 @@ export function PosView({
               <button
                 type="button"
                 onClick={() => setMode('mesa')}
-                className={`py-2 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`py-2 px-2 text-xs font-medium rounded-sm transition-colors whitespace-nowrap ${
                   mode === 'mesa'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-stone-900 border border-stone-200'
+                    : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 Lançar Mesa
@@ -581,41 +585,41 @@ export function PosView({
               <button
                 type="button"
                 onClick={() => setMode('receber')}
-                className={`py-2 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`py-2 px-2 text-xs font-medium rounded-sm transition-colors whitespace-nowrap ${
                   mode === 'receber'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-stone-900 border border-stone-200'
+                    : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                Receber Mesa ({tablesWithBalance.length})
+                Receber ({tablesWithBalance.length})
               </button>
             </div>
 
             {mode === 'balcao' && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Tipo de Venda
+                  <label className="block text-[11px] font-medium text-stone-500 mb-1">
+                    Origem
                   </label>
                   <select
                     value={origin}
                     onChange={(e) => setOrigin(e.target.value as 'Balcão' | 'Retirada')}
-                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg bg-white"
+                    className="w-full px-2.5 py-2 text-xs border border-stone-200 rounded-md bg-white"
                   >
-                    <option value="Balcão">Consumo Balcão</option>
-                    <option value="Retirada">Retirada / Viagem</option>
+                    <option value="Balcão">Balcão</option>
+                    <option value="Retirada">Retirada</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Cliente / Identificação
+                  <label className="block text-[11px] font-medium text-stone-500 mb-1">
+                    Cliente
                   </label>
                   <input
                     type="text"
                     value={customerLabel}
                     onChange={(e) => setCustomerLabel(e.target.value)}
-                    placeholder="Ex: João / Balcão"
-                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg"
+                    placeholder="Nome ou senha"
+                    className="w-full px-2.5 py-2 text-xs border border-stone-200 rounded-md"
                   />
                 </div>
               </div>
@@ -624,30 +628,34 @@ export function PosView({
             {mode === 'mesa' && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Selecionar Mesa
+                  <label className="block text-[11px] font-medium text-stone-500 mb-1">
+                    Mesa
                   </label>
                   <select
                     value={selectedTableId}
                     onChange={(e) => setSelectedTableId(e.target.value)}
-                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg bg-white"
+                    className="w-full px-2.5 py-2 text-xs border border-stone-200 rounded-md bg-white"
                   >
-                    {state.tables.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label} · {t.status === 'ocupada' ? 'Ocupada' : 'Livre'}
-                      </option>
-                    ))}
+                    {state.tables.length === 0 ? (
+                      <option value="">Sem mesas no salão</option>
+                    ) : (
+                      state.tables.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label} · {t.status === 'ocupada' ? 'Ocupada' : 'Livre'}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Operador / Garçom
+                  <label className="block text-[11px] font-medium text-stone-500 mb-1">
+                    Atendente
                   </label>
                   <input
                     type="text"
                     value={operatorName}
                     onChange={(e) => setOperatorName(e.target.value)}
-                    className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg"
+                    className="w-full px-2.5 py-2 text-xs border border-stone-200 rounded-md"
                   />
                 </div>
               </div>
@@ -655,22 +663,22 @@ export function PosView({
 
             {mode === 'receber' && (
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                  Mesa com Conta em Aberto
+                <label className="block text-[11px] font-medium text-stone-500 mb-1">
+                  Mesa em aberto
                 </label>
                 {tablesWithBalance.length === 0 ? (
-                  <div className="text-xs text-slate-500 py-2">
-                    Nenhuma mesa com consumo em aberto no momento.
+                  <div className="text-xs text-stone-500 py-2">
+                    Nenhuma mesa com conta em aberto.
                   </div>
                 ) : (
                   <select
                     value={activeReceiveTableId}
                     onChange={(e) => setSelectedTableId(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-lg bg-white"
+                    className="w-full px-3 py-2 text-xs font-medium border border-stone-200 rounded-md bg-white"
                   >
                     {tablesWithBalance.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.label} · {t.zone} ({t.guests} clientes)
+                        {t.label} · {t.zone} ({t.guests} lugares)
                       </option>
                     ))}
                   </select>
@@ -679,34 +687,33 @@ export function PosView({
             )}
           </div>
 
-          {/* Items Area */}
-          <div className="p-4 border-b border-slate-200 max-h-64 overflow-y-auto">
+          <div className="p-4 border-b border-stone-200 max-h-64 overflow-y-auto">
             {mode !== 'receber' ? (
               cart.length === 0 ? (
-                <div className="py-10 text-center text-xs text-slate-400">
-                  Clique nos produtos ao lado para adicionar ao cupom do PDV.
+                <div className="py-10 text-center text-xs text-stone-400">
+                  Selecione itens do cardápio para montar o cupom.
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>{cart.reduce((s, l) => s + l.quantity, 0)} itens no cupom</span>
+                  <div className="flex items-center justify-between text-xs text-stone-500">
+                    <span>{cart.reduce((s, l) => s + l.quantity, 0)} itens</span>
                     <button
                       type="button"
                       onClick={() => setCart([])}
                       className="inline-flex items-center gap-1 text-red-600 hover:text-red-700"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      Limpar cupom
+                      Limpar
                     </button>
                   </div>
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-stone-100">
                     {cart.map((line) => (
                       <li key={line.menuItem.id} className="py-2.5 space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium text-slate-900">
+                          <span className="text-xs font-medium text-stone-900">
                             {line.menuItem.name}
                           </span>
-                          <span className="font-mono text-xs font-semibold text-slate-900 tabular-nums shrink-0">
+                          <span className="font-mono text-xs font-semibold text-stone-900 tabular-nums shrink-0">
                             {formatCurrency(line.menuItem.price * line.quantity)}
                           </span>
                         </div>
@@ -715,14 +722,14 @@ export function PosView({
                             type="text"
                             value={line.notes}
                             onChange={(e) => updateCartNotes(line.menuItem.id, e.target.value)}
-                            placeholder="Obs. cozinha..."
-                            className="flex-1 px-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded"
+                            placeholder="Observação..."
+                            className="flex-1 px-2 py-1 text-[11px] bg-stone-50 border border-stone-200 rounded-sm"
                           />
-                          <div className="inline-flex items-center gap-1 border border-slate-200 rounded">
+                          <div className="inline-flex items-center gap-1 border border-stone-200 rounded-sm">
                             <button
                               type="button"
                               onClick={() => updateCartQty(line.menuItem.id, -1)}
-                              className="p-1 text-slate-600 hover:text-slate-900"
+                              className="p-1 text-stone-600 hover:text-stone-900"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
@@ -732,7 +739,7 @@ export function PosView({
                             <button
                               type="button"
                               onClick={() => updateCartQty(line.menuItem.id, 1)}
-                              className="p-1 text-slate-600 hover:text-slate-900"
+                              className="p-1 text-stone-600 hover:text-stone-900"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -744,21 +751,21 @@ export function PosView({
                 </div>
               )
             ) : receiveOrders.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-400">
-                Selecione uma mesa ocupada acima para receber o pagamento.
+              <div className="py-10 text-center text-xs text-stone-400">
+                Selecione uma mesa ocupada para fechar a conta.
               </div>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-stone-100">
                 {receiveOrders.flatMap((o) =>
                   o.items.map((it) => (
                     <li key={it.id} className="py-2 flex items-center justify-between gap-2 text-xs">
-                      <span className="text-slate-800">
-                        <span className="font-mono font-semibold text-slate-900 mr-1.5 tabular-nums">
+                      <span className="text-stone-800">
+                        <span className="font-mono font-semibold text-stone-900 mr-1.5 tabular-nums">
                           {it.quantity}×
                         </span>
                         {it.name}
                       </span>
-                      <span className="font-mono font-medium text-slate-900 tabular-nums shrink-0">
+                      <span className="font-mono font-medium text-stone-900 tabular-nums shrink-0">
                         {formatCurrency(it.unitPrice * it.quantity)}
                       </span>
                     </li>
@@ -768,33 +775,32 @@ export function PosView({
             )}
           </div>
 
-          {/* Totals & Payment Terminal */}
-          <div className="p-4 bg-slate-50/70 space-y-4">
+          <div className="p-4 bg-stone-50/70 space-y-4">
             {mode !== 'mesa' && (
               <>
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-600">
+                  <div className="flex justify-between text-stone-600">
                     <span>Subtotal</span>
                     <span className="font-mono tabular-nums">{formatCurrency(activeSubtotal)}</span>
                   </div>
 
                   {mode === 'receber' && (
-                    <label className="flex items-center justify-between text-slate-600 cursor-pointer">
+                    <label className="flex items-center justify-between text-stone-600 cursor-pointer">
                       <span className="inline-flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={includeServiceFee}
                           onChange={(e) => setIncludeServiceFee(e.target.checked)}
-                          className="rounded border-slate-300 text-teal-700"
+                          className="rounded border-stone-300 text-emerald-800"
                         />
-                        Taxa de serviço (10%)
+                        Serviço (10%)
                       </span>
                       <span className="font-mono tabular-nums">{formatCurrency(serviceFee)}</span>
                     </label>
                   )}
 
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-600">Desconto (R$)</span>
+                    <span className="text-stone-600">Desconto (R$)</span>
                     <input
                       type="number"
                       min={0}
@@ -802,13 +808,13 @@ export function PosView({
                       step="1"
                       value={discountInput}
                       onChange={(e) => setDiscountInput(e.target.value)}
-                      className="w-24 px-2 py-1 text-right font-mono text-xs bg-white border border-slate-200 rounded-md tabular-nums"
+                      className="w-24 px-2 py-1 text-right font-mono text-xs bg-white border border-stone-200 rounded-md tabular-nums"
                     />
                   </div>
 
                   {mode === 'receber' && activeSubtotal > 0 && (
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-600">Dividir conta por pessoas</span>
+                      <span className="text-stone-600">Dividir conta</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -816,10 +822,10 @@ export function PosView({
                           max={20}
                           value={splitPeople}
                           onChange={(e) => setSplitPeople(e.target.value)}
-                          className="w-16 px-2 py-1 text-right font-mono text-xs bg-white border border-slate-200 rounded-md tabular-nums"
+                          className="w-16 px-2 py-1 text-right font-mono text-xs bg-white border border-stone-200 rounded-md tabular-nums"
                         />
                         {peopleCount > 1 && (
-                          <span className="font-mono text-xs font-semibold text-teal-800 tabular-nums">
+                          <span className="font-mono text-xs font-semibold text-emerald-800 tabular-nums">
                             {formatCurrency(perPersonAmount)}/p
                           </span>
                         )}
@@ -827,25 +833,24 @@ export function PosView({
                     </div>
                   )}
 
-                  <div className="flex justify-between pt-2 border-t border-slate-200 text-base font-semibold text-slate-900">
-                    <span>Total a Receber</span>
+                  <div className="flex justify-between pt-2 border-t border-stone-200 text-base font-semibold text-stone-900">
+                    <span>Total</span>
                     <span className="font-mono tabular-nums">{formatCurrency(finalTotal)}</span>
                   </div>
                 </div>
 
-                {/* Payment Method Picker */}
                 <div className="space-y-2">
-                  <div className="text-[11px] font-medium text-slate-600">Forma de Pagamento</div>
+                  <div className="text-[11px] font-medium text-stone-600">Pagamento</div>
                   <div className="grid grid-cols-4 gap-1.5">
                     {PAYMENT_OPTIONS.map(({ value, label, Icon }) => (
                       <button
                         key={value}
                         type="button"
                         onClick={() => setPaymentMethod(value)}
-                        className={`p-2 rounded-lg border flex flex-col items-center gap-1 text-[11px] font-medium transition-colors ${
+                        className={`p-2 rounded-md border flex flex-col items-center gap-1 text-[11px] font-medium transition-colors ${
                           paymentMethod === value
-                            ? 'border-teal-700 bg-teal-50 text-teal-900'
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            ? 'border-emerald-800 bg-emerald-50 text-emerald-900'
+                            : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -856,10 +861,10 @@ export function PosView({
                 </div>
 
                 {paymentMethod === 'Dinheiro' && (
-                  <div className="grid grid-cols-2 gap-3 p-3 bg-white border border-slate-200 rounded-lg">
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-white border border-stone-200 rounded-md">
                     <div>
-                      <label className="block text-[11px] text-slate-500 mb-1">
-                        Valor recebido (R$)
+                      <label className="block text-[11px] text-stone-500 mb-1">
+                        Valor pago (R$)
                       </label>
                       <input
                         type="number"
@@ -868,12 +873,12 @@ export function PosView({
                         value={cashReceivedInput}
                         onChange={(e) => setCashReceivedInput(e.target.value)}
                         placeholder={String(Math.ceil(finalTotal))}
-                        className="w-full px-2.5 py-1.5 font-mono text-xs border border-slate-200 rounded-md tabular-nums"
+                        className="w-full px-2.5 py-1.5 font-mono text-xs border border-stone-200 rounded-md tabular-nums"
                       />
                     </div>
                     <div className="text-right">
-                      <div className="text-[11px] text-slate-500">Troco</div>
-                      <div className="mt-1 font-mono text-sm font-semibold text-emerald-700 tabular-nums">
+                      <div className="text-[11px] text-stone-500">Troco</div>
+                      <div className="mt-1 font-mono text-sm font-semibold text-emerald-800 tabular-nums">
                         {formatCurrency(changeDue)}
                       </div>
                     </div>
@@ -881,50 +886,49 @@ export function PosView({
                 )}
 
                 {mode === 'balcao' && (
-                  <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs text-stone-600 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={sendToKitchen}
                       onChange={(e) => setSendToKitchen(e.target.checked)}
-                      className="rounded border-slate-300 text-teal-700"
+                      className="rounded border-stone-300 text-emerald-800"
                     />
-                    Enviar itens para fila da cozinha (KDS)
+                    Enviar para a cozinha
                   </label>
                 )}
               </>
             )}
 
-            {/* Primary PDV Action Button */}
             {mode === 'balcao' && (
               <button
                 type="button"
                 disabled={cart.length === 0 || submitting || !isCashOpen}
                 onClick={handleCompleteDirectSale}
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors disabled:opacity-40"
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-md transition-colors disabled:opacity-40"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 {!isCashOpen
-                  ? 'Abra o caixa para finalizar venda'
+                  ? 'Abra o caixa para vender'
                   : submitting
-                    ? 'Processando venda...'
-                    : `Finalizar Venda · ${formatCurrency(finalTotal)}`}
+                    ? 'Registrando...'
+                    : `Finalizar · ${formatCurrency(finalTotal)}`}
               </button>
             )}
 
             {mode === 'mesa' && (
               <div className="space-y-3">
-                <div className="flex justify-between text-sm font-semibold text-slate-900">
-                  <span>Total a Lançar</span>
+                <div className="flex justify-between text-sm font-semibold text-stone-900">
+                  <span>Total do lançamento</span>
                   <span className="font-mono tabular-nums">{formatCurrency(cartSubtotal)}</span>
                 </div>
                 <button
                   type="button"
                   disabled={cart.length === 0 || !selectedTableId || submitting}
                   onClick={handleDispatchToTable}
-                  className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-40"
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 rounded-md transition-colors disabled:opacity-40"
                 >
                   <Send className="w-4 h-4" />
-                  {submitting ? 'Enviando...' : 'Lançar na Mesa & Cozinha'}
+                  {submitting ? 'Enviando...' : 'Lançar na Mesa'}
                 </button>
               </div>
             )}
@@ -934,29 +938,28 @@ export function PosView({
                 type="button"
                 disabled={receiveSubtotal <= 0 || submitting || !isCashOpen}
                 onClick={handleReceiveTable}
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-40"
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 rounded-md transition-colors disabled:opacity-40"
               >
                 <Receipt className="w-4 h-4" />
                 {!isCashOpen
-                  ? 'Abra o caixa para receber mesa'
+                  ? 'Abra o caixa para receber'
                   : submitting
                     ? 'Recebendo...'
-                    : `Receber ${formatCurrency(finalTotal)} e Liberar Mesa`}
+                    : `Receber ${formatCurrency(finalTotal)}`}
               </button>
             )}
           </div>
         </section>
       </div>
 
-      {/* Latest Sale Receipt Card */}
       {lastReceipt && (
-        <section className="bg-white border border-slate-200 rounded-xl p-6">
-          <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-200">
+        <section className="bg-white border border-stone-200 rounded-lg p-5">
+          <div className="flex items-start justify-between gap-4 pb-4 border-b border-stone-200">
             <div>
-              <div className="text-xs font-medium text-emerald-700">
-                Comprovante Registrado · {formatTimeShort(lastReceipt.timestamp)}
+              <div className="text-xs font-medium text-emerald-800">
+                Comprovante · {formatTimeShort(lastReceipt.timestamp)}
               </div>
-              <h3 className="text-base font-semibold text-slate-900 mt-0.5">
+              <h3 className="text-base font-semibold text-stone-900 mt-0.5">
                 {lastReceipt.title}
               </h3>
             </div>
@@ -964,7 +967,7 @@ export function PosView({
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-200 hover:bg-slate-50 rounded-lg"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-stone-700 border border-stone-200 hover:bg-stone-50 rounded-md"
               >
                 <Printer className="w-3.5 h-3.5" />
                 Imprimir
@@ -972,7 +975,7 @@ export function PosView({
               <button
                 type="button"
                 onClick={() => setLastReceipt(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg"
+                className="p-1.5 text-stone-400 hover:text-stone-900 rounded-md"
                 aria-label="Fechar comprovante"
               >
                 <X className="w-4 h-4" />
@@ -983,7 +986,7 @@ export function PosView({
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
             <ul className="space-y-1.5">
               {lastReceipt.items.map((it, idx) => (
-                <li key={idx} className="flex justify-between text-slate-700">
+                <li key={idx} className="flex justify-between text-stone-700">
                   <span>
                     <span className="font-mono font-semibold mr-1.5 tabular-nums">
                       {it.quantity}×
@@ -997,30 +1000,30 @@ export function PosView({
               ))}
             </ul>
 
-            <div className="space-y-1.5 md:border-l md:border-slate-200 md:pl-6">
-              <div className="flex justify-between text-slate-600">
+            <div className="space-y-1.5 md:border-l md:border-stone-200 md:pl-6">
+              <div className="flex justify-between text-stone-600">
                 <span>Subtotal</span>
                 <span className="font-mono tabular-nums">{formatCurrency(lastReceipt.subtotal)}</span>
               </div>
               {lastReceipt.serviceFee > 0 && (
-                <div className="flex justify-between text-slate-600">
-                  <span>Taxa de serviço (10%)</span>
+                <div className="flex justify-between text-stone-600">
+                  <span>Serviço (10%)</span>
                   <span className="font-mono tabular-nums">{formatCurrency(lastReceipt.serviceFee)}</span>
                 </div>
               )}
               {lastReceipt.discount > 0 && (
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-stone-600">
                   <span>Desconto</span>
                   <span className="font-mono tabular-nums">-{formatCurrency(lastReceipt.discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm font-semibold text-slate-900 pt-1.5 border-t border-slate-200">
-                <span>Total Pago ({lastReceipt.paymentMethod})</span>
+              <div className="flex justify-between text-sm font-semibold text-stone-900 pt-1.5 border-t border-stone-200">
+                <span>Pago ({lastReceipt.paymentMethod})</span>
                 <span className="font-mono tabular-nums">{formatCurrency(lastReceipt.total)}</span>
               </div>
               {lastReceipt.changeDue !== undefined && (
-                <div className="flex justify-between text-emerald-700 font-mono tabular-nums">
-                  <span>Troco devolvido</span>
+                <div className="flex justify-between text-emerald-800 font-mono tabular-nums">
+                  <span>Troco</span>
                   <span>{formatCurrency(lastReceipt.changeDue)}</span>
                 </div>
               )}

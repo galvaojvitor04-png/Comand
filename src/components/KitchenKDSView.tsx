@@ -12,7 +12,7 @@ interface KitchenKDSViewProps {
 type KdsFilter = 'ativos' | 'pendente' | 'preparo' | 'pronto' | 'entregue';
 
 const KDS_TABS: Array<{ value: KdsFilter; label: string }> = [
-  { value: 'ativos', label: 'Ativos na Cozinha' },
+  { value: 'ativos', label: 'Ativos' },
   { value: 'pendente', label: 'Na Fila' },
   { value: 'preparo', label: 'Em Preparo' },
   { value: 'pronto', label: 'Prontos' },
@@ -60,34 +60,33 @@ export function KitchenKDSView({
     let statusColor = 'text-amber-700';
     if (order.status === 'preparo') {
       statusText = 'Em Preparo';
-      statusColor = 'text-teal-700';
+      statusColor = 'text-emerald-800';
     } else if (order.status === 'pronto') {
-      statusText = 'Pronto p/ Servir';
-      statusColor = 'text-emerald-700';
+      statusText = 'Pronto';
+      statusColor = 'text-emerald-800';
     } else if (order.status === 'entregue') {
       statusText = 'Entregue';
-      statusColor = 'text-slate-500';
+      statusColor = 'text-stone-500';
     }
 
     return (
       <article
         key={order.id}
-        className={`bg-white border rounded-xl flex flex-col justify-between overflow-hidden ${
-          isCritical ? 'border-red-300' : isWarning ? 'border-amber-300' : 'border-slate-200'
+        className={`bg-white border rounded-lg flex flex-col justify-between overflow-hidden ${
+          isCritical ? 'border-red-300' : isWarning ? 'border-amber-300' : 'border-stone-200'
         }`}
       >
-        {/* Ticket Top Metadata */}
         <div>
-          <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
+          <div className="px-5 py-4 border-b border-stone-100 flex items-start justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="font-mono font-semibold text-slate-900">{order.code}</span>
+              <div className="flex items-center gap-2 text-xs text-stone-500">
+                <span className="font-mono font-semibold text-stone-900">{order.code}</span>
                 <span aria-hidden="true">·</span>
                 <span>{formatTimeShort(order.createdAt)}</span>
                 <span aria-hidden="true">·</span>
                 <span>{order.origin}</span>
               </div>
-              <h3 className="text-base font-semibold text-slate-900 mt-1">{order.tableLabel}</h3>
+              <h3 className="text-base font-semibold text-stone-900 mt-1">{order.tableLabel}</h3>
             </div>
 
             <div className="text-right shrink-0">
@@ -98,7 +97,7 @@ export function KitchenKDSView({
                     ? 'text-red-600 font-semibold'
                     : isWarning
                       ? 'text-amber-700 font-semibold'
-                      : 'text-slate-500'
+                      : 'text-stone-500'
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
@@ -108,15 +107,14 @@ export function KitchenKDSView({
             </div>
           </div>
 
-          {/* Items */}
-          <ul className="divide-y divide-slate-100 px-5 py-2">
+          <ul className="divide-y divide-stone-100 px-5 py-2">
             {order.items.map((item) => (
               <li key={item.id} className="py-2.5 flex items-start gap-3">
-                <span className="font-mono text-xs font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded tabular-nums shrink-0">
+                <span className="font-mono text-xs font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-sm tabular-nums shrink-0">
                   {item.quantity}×
                 </span>
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-900">{item.name}</div>
+                  <div className="text-sm font-medium text-stone-900">{item.name}</div>
                   {item.notes && (
                     <div className="text-xs font-medium text-amber-700 mt-0.5">
                       Obs: {item.notes}
@@ -128,9 +126,8 @@ export function KitchenKDSView({
           </ul>
         </div>
 
-        {/* Footer Action Bar */}
-        <div className="px-5 py-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
-          <span className="text-xs text-slate-500 truncate">{order.waiter}</span>
+        <div className="px-5 py-3.5 bg-stone-50/70 border-t border-stone-100 flex items-center justify-between gap-2">
+          <span className="text-xs text-stone-500 truncate">{order.waiter}</span>
 
           <div className="flex items-center gap-2 shrink-0">
             {confirmCancelId === order.id ? (
@@ -142,15 +139,15 @@ export function KitchenKDSView({
                     await handleTransition(order.id, 'cancelado');
                     setConfirmCancelId(null);
                   }}
-                  className="px-2.5 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                  className="px-2.5 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
                 >
-                  Confirmar Cancelamento
+                  Confirmar
                 </button>
                 <button
                   type="button"
                   disabled={busyId === order.id}
                   onClick={() => setConfirmCancelId(null)}
-                  className="px-2 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
+                  className="px-2 py-1.5 text-xs font-medium text-stone-600 hover:text-stone-900"
                 >
                   Voltar
                 </button>
@@ -163,7 +160,7 @@ export function KitchenKDSView({
                     disabled={busyId === order.id}
                     onClick={() => setConfirmCancelId(order.id)}
                     title="Cancelar comanda"
-                    className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                    className="p-2 text-stone-400 hover:text-red-600 rounded-md transition-colors"
                   >
                     <XCircle className="w-4 h-4" />
                   </button>
@@ -174,10 +171,10 @@ export function KitchenKDSView({
                     type="button"
                     disabled={busyId === order.id}
                     onClick={() => handleTransition(order.id, 'preparo')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-md transition-colors disabled:opacity-50"
                   >
                     <Flame className="w-3.5 h-3.5" />
-                    Iniciar Preparo
+                    Iniciar
                   </button>
                 )}
 
@@ -186,10 +183,10 @@ export function KitchenKDSView({
                     type="button"
                     disabled={busyId === order.id}
                     onClick={() => handleTransition(order.id, 'pronto')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-emerald-800 hover:bg-emerald-900 rounded-md transition-colors disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Marcar Pronto
+                    Pronto
                   </button>
                 )}
               </>
@@ -200,15 +197,15 @@ export function KitchenKDSView({
                 type="button"
                 disabled={busyId === order.id}
                 onClick={() => handleTransition(order.id, 'entregue')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-emerald-800 hover:bg-emerald-900 rounded-md transition-colors disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Confirmar Entrega
+                Entregue
               </button>
             )}
 
             {order.status === 'entregue' && (
-              <span className="text-xs text-slate-500">Finalizado</span>
+              <span className="text-xs text-stone-500">Finalizado</span>
             )}
           </div>
         </div>
@@ -218,18 +215,17 @@ export function KitchenKDSView({
 
   return (
     <div className="space-y-6">
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-stone-200 rounded-lg p-4">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-stone-100 rounded-md">
           {KDS_TABS.map((tab) => (
             <button
               key={tab.value}
               type="button"
               onClick={() => setFilter(tab.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors whitespace-nowrap shrink-0 ${
                 filter === tab.value
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-stone-900 border border-stone-200'
+                  : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               {tab.label}
@@ -239,22 +235,21 @@ export function KitchenKDSView({
 
         <div className="flex items-center gap-3 text-xs tabular-nums">
           <span className="text-amber-700 font-medium">{counts.pendente} na fila</span>
-          <span aria-hidden="true" className="text-slate-300">·</span>
-          <span className="text-teal-700 font-medium">{counts.preparo} em preparo</span>
-          <span aria-hidden="true" className="text-slate-300">·</span>
-          <span className="text-emerald-700 font-medium">{counts.pronto} prontos</span>
+          <span aria-hidden="true" className="text-stone-300">·</span>
+          <span className="text-emerald-800 font-medium">{counts.preparo} em preparo</span>
+          <span aria-hidden="true" className="text-stone-300">·</span>
+          <span className="text-stone-700 font-medium">{counts.pronto} prontos</span>
         </div>
       </div>
 
-      {/* Tickets Grid */}
       {orders.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-16 text-center">
-          <ChefHat className="w-9 h-9 text-slate-300 mx-auto" />
-          <p className="mt-3 text-sm font-medium text-slate-800">
+        <div className="bg-white border border-stone-200 rounded-lg p-16 text-center">
+          <ChefHat className="w-9 h-9 text-stone-300 mx-auto" />
+          <p className="mt-3 text-sm font-medium text-stone-800">
             Nenhuma comanda nesta etapa
           </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Quando novos pedidos forem enviados, as comandas aparecerão em tempo real.
+          <p className="mt-1 text-xs text-stone-500">
+            Os pedidos enviados para a cozinha aparecem aqui.
           </p>
         </div>
       ) : (

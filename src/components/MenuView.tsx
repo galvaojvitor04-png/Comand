@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, Search, Pencil, Trash2, X, Utensils, Coffee, Wine, CakeSlice } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Utensils, Wine, CakeSlice } from 'lucide-react';
 import type { MenuCategory, MenuItem, RestaurantState } from '../types.ts';
 import { formatCurrency } from '../utils/format.ts';
+import { Modal } from './Modal.tsx';
 
 interface MenuViewProps {
   state: RestaurantState;
@@ -21,13 +22,13 @@ const CATEGORIES: Array<'Todos' | MenuCategory> = [
 function DishEmblem({ category }: { category: MenuCategory }) {
   const config: Record<MenuCategory, { bg: string; iconColor: string; Icon: typeof Utensils }> = {
     Entradas: { bg: 'bg-amber-50', iconColor: 'text-amber-700', Icon: Utensils },
-    Principais: { bg: 'bg-teal-50', iconColor: 'text-teal-700', Icon: Utensils },
+    Principais: { bg: 'bg-emerald-50', iconColor: 'text-emerald-800', Icon: Utensils },
     Sobremesas: { bg: 'bg-rose-50', iconColor: 'text-rose-700', Icon: CakeSlice },
-    Bebidas: { bg: 'bg-slate-100', iconColor: 'text-slate-700', Icon: category === 'Bebidas' ? Wine : Coffee },
+    Bebidas: { bg: 'bg-stone-100', iconColor: 'text-stone-700', Icon: Wine },
   };
   const { bg, iconColor, Icon } = config[category];
   return (
-    <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
+    <div className={`w-10 h-10 rounded-md ${bg} flex items-center justify-center shrink-0`}>
       <Icon className={`w-4 h-4 ${iconColor}`} />
     </div>
   );
@@ -117,18 +118,17 @@ export function MenuView({
 
   return (
     <div className="space-y-6">
-      {/* Filter & Search Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-stone-200 rounded-lg p-4">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-stone-100 rounded-md">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => setCategoryFilter(cat)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors whitespace-nowrap shrink-0 ${
                 categoryFilter === cat
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-stone-900 border border-stone-200'
+                  : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               {cat}
@@ -138,19 +138,19 @@ export function MenuView({
 
         <div className="flex items-center gap-3">
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar prato ou código..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
             />
           </div>
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-md transition-colors whitespace-nowrap shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             Novo Prato
@@ -158,60 +158,61 @@ export function MenuView({
         </div>
       </div>
 
-      {/* Menu Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-stone-200 rounded-lg overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-sm font-medium text-slate-800">Nenhum prato encontrado.</p>
+            <p className="text-sm font-medium text-stone-800">Nenhum prato encontrado.</p>
             <button
               type="button"
               onClick={openCreateModal}
-              className="mt-3 text-xs font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
+              className="mt-3 text-xs font-medium text-emerald-800 hover:text-emerald-900 underline underline-offset-2"
             >
-              Cadastrar primeiro prato
+              Cadastrar item no cardápio
             </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-medium text-slate-500">
-                  <th className="py-3 pl-6 pr-3">Prato</th>
+                <tr className="border-b border-stone-200 bg-stone-50/70 text-xs font-medium text-stone-500">
+                  <th className="py-3 pl-5 pr-3">Prato</th>
                   <th className="py-3 px-3">Categoria</th>
                   <th className="py-3 px-3">Preparo</th>
-                  <th className="py-3 px-3">Disponibilidade</th>
+                  <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Preço</th>
-                  <th className="py-3 pl-3 pr-6 text-right">Ações</th>
+                  <th className="py-3 pl-3 pr-5 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-stone-100 text-sm">
                 {filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 pl-6 pr-3 max-w-md">
+                  <tr key={item.id} className="hover:bg-stone-50/80 transition-colors">
+                    <td className="py-4 pl-5 pr-3 max-w-md">
                       <div className="flex items-start gap-3.5">
                         <DishEmblem category={item.category} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-slate-900">{item.name}</span>
-                            <span className="font-mono text-[11px] text-slate-400">
+                            <span className="font-medium text-stone-900">{item.name}</span>
+                            <span className="font-mono text-[11px] text-stone-400">
                               {item.sku}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
-                            {item.description}
-                          </p>
+                          {item.description && (
+                            <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">
+                              {item.description}
+                            </p>
+                          )}
                           {item.dietary && (
-                            <div className="text-[11px] font-medium text-teal-700 mt-1">
+                            <div className="text-[11px] font-medium text-emerald-800 mt-1">
                               {item.dietary}
                             </div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-3 text-xs text-slate-600 whitespace-nowrap">
+                    <td className="py-4 px-3 text-xs text-stone-600 whitespace-nowrap">
                       {item.category}
                     </td>
-                    <td className="py-4 px-3 font-mono text-xs text-slate-600 tabular-nums whitespace-nowrap">
+                    <td className="py-4 px-3 font-mono text-xs text-stone-600 tabular-nums whitespace-nowrap">
                       {item.prepTimeMin} min
                     </td>
                     <td className="py-4 px-3 whitespace-nowrap">
@@ -220,23 +221,23 @@ export function MenuView({
                         onClick={() => onUpdateDish(item.id, { available: !item.available })}
                         className={`text-xs font-semibold transition-colors ${
                           item.available
-                            ? 'text-emerald-700 hover:text-emerald-800'
+                            ? 'text-emerald-800 hover:text-emerald-900'
                             : 'text-red-600 hover:text-red-700'
                         }`}
                       >
                         {item.available ? 'Disponível' : 'Esgotado'}
                       </button>
                     </td>
-                    <td className="py-4 px-3 text-right font-mono text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                    <td className="py-4 px-3 text-right font-mono text-sm font-semibold text-stone-900 tabular-nums whitespace-nowrap">
                       {formatCurrency(item.price)}
                     </td>
-                    <td className="py-4 pl-3 pr-6 text-right whitespace-nowrap">
+                    <td className="py-4 pl-3 pr-5 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => openEditModal(item)}
                           title="Editar prato"
-                          className="p-2 text-slate-400 hover:text-slate-900 rounded-lg transition-colors"
+                          className="p-2 text-stone-400 hover:text-stone-900 rounded-md transition-colors"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -244,7 +245,7 @@ export function MenuView({
                           type="button"
                           onClick={() => onDeleteDish(item.id)}
                           title="Remover prato"
-                          className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                          className="p-2 text-stone-400 hover:text-red-600 rounded-md transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -258,140 +259,127 @@ export function MenuView({
         )}
       </div>
 
-      {/* Create/Edit Dish Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px]">
-          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900">
-                {editingItem ? 'Editar Item do Cardápio' : 'Novo Item no Cardápio'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Nome do prato ou bebida
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Polvo Grelhado ao Azeite de Páprica"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Descrição e acompanhamentos
-                </label>
-                <textarea
-                  rows={2}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ingredientes principais e modo de preparo..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Categoria
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as MenuCategory)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  >
-                    <option value="Entradas">Entradas</option>
-                    <option value="Principais">Principais</option>
-                    <option value="Sobremesas">Sobremesas</option>
-                    <option value="Bebidas">Bebidas</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Preço (R$)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    step="0.5"
-                    required
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full px-3 py-2 text-sm font-mono border border-slate-200 rounded-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Preparo (min)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={prepTimeMin}
-                    onChange={(e) => setPrepTimeMin(e.target.value)}
-                    className="w-full px-3 py-2 text-sm font-mono border border-slate-200 rounded-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 items-center pt-1">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Observação dietética (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={dietary}
-                    onChange={(e) => setDietary(e.target.value)}
-                    placeholder="Ex: Sem glúten, Vegano"
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  />
-                </div>
-                <label className="flex items-center gap-2 text-sm text-slate-700 pt-5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={available}
-                    onChange={(e) => setAvailable(e.target.checked)}
-                    className="rounded border-slate-300 text-teal-700 focus:ring-teal-700"
-                  />
-                  Disponível para venda
-                </label>
-              </div>
-
-              <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50"
-                >
-                  {saving ? 'Salvando...' : editingItem ? 'Salvar Alterações' : 'Cadastrar Item'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editingItem ? 'Editar Item' : 'Novo Item no Cardápio'}
+        maxWidthClass="max-w-lg"
+      >
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-stone-700 mb-1">
+              Nome do item
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Polvo Grelhado ao Azeite"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-xs font-medium text-stone-700 mb-1">
+              Descrição
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ingredientes e acompanhamentos..."
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1">
+                Categoria
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as MenuCategory)}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-emerald-800"
+              >
+                <option value="Entradas">Entradas</option>
+                <option value="Principais">Principais</option>
+                <option value="Sobremesas">Sobremesas</option>
+                <option value="Bebidas">Bebidas</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1">
+                Preço (R$)
+              </label>
+              <input
+                type="number"
+                min={1}
+                step="0.5"
+                required
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="w-full px-3 py-2 text-sm font-mono border border-stone-200 rounded-md tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-800"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1">
+                Preparo (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                required
+                value={prepTimeMin}
+                onChange={(e) => setPrepTimeMin(e.target.value)}
+                className="w-full px-3 py-2 text-sm font-mono border border-stone-200 rounded-md tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-800"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 items-center pt-1">
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1">
+                Restrição (opcional)
+              </label>
+              <input
+                type="text"
+                value={dietary}
+                onChange={(e) => setDietary(e.target.value)}
+                placeholder="Sem glúten, Vegano..."
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-stone-700 pt-5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={available}
+                onChange={(e) => setAvailable(e.target.checked)}
+                className="rounded border-stone-300 text-emerald-800 focus:ring-emerald-800"
+              />
+              Disponível no cardápio
+            </label>
+          </div>
+
+          <div className="pt-4 border-t border-stone-200 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="px-4 py-2 text-xs font-medium text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 rounded-md"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-md disabled:opacity-50"
+            >
+              {saving ? 'Salvando...' : editingItem ? 'Salvar Alterações' : 'Cadastrar'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

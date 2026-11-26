@@ -7,10 +7,10 @@ import {
   ClipboardList,
   CheckCircle2,
   RotateCcw,
-  X,
 } from 'lucide-react';
 import type { Order, OrderStatus, RestaurantState } from '../types.ts';
 import { formatCurrency, formatElapsed, formatTimeShort, getElapsedMinutes } from '../utils/format.ts';
+import { Modal } from './Modal.tsx';
 
 interface OrdersViewProps {
   state: RestaurantState;
@@ -30,7 +30,7 @@ type OrderFilter = 'ativos' | 'todos' | OrderStatus;
 const STATUS_TABS: Array<{ value: OrderFilter; label: string }> = [
   { value: 'ativos', label: 'Em Aberto' },
   { value: 'pendente', label: 'Na Fila' },
-  { value: 'preparo', label: 'Em Preparo' },
+  { value: 'preparo', label: 'Preparo' },
   { value: 'pronto', label: 'Prontos' },
   { value: 'entregue', label: 'Entregues' },
   { value: 'cancelado', label: 'Cancelados' },
@@ -39,9 +39,9 @@ const STATUS_TABS: Array<{ value: OrderFilter; label: string }> = [
 
 const STATUS_META: Record<OrderStatus, { label: string; tone: string }> = {
   pendente: { label: 'Na Fila', tone: 'text-amber-700' },
-  preparo: { label: 'Em Preparo', tone: 'text-teal-700' },
-  pronto: { label: 'Pronto p/ Servir', tone: 'text-emerald-700' },
-  entregue: { label: 'Entregue', tone: 'text-slate-500' },
+  preparo: { label: 'Em Preparo', tone: 'text-emerald-800' },
+  pronto: { label: 'Pronto', tone: 'text-emerald-700' },
+  entregue: { label: 'Entregue', tone: 'text-stone-500' },
   cancelado: { label: 'Cancelado', tone: 'text-red-600' },
 };
 
@@ -138,19 +138,18 @@ export function OrdersView({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Toolbar */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
+    <div className="space-y-5">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-white border border-stone-200 rounded-lg p-3.5">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-stone-100 rounded-md">
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.value}
               type="button"
               onClick={() => setFilter(tab.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors whitespace-nowrap shrink-0 ${
                 filter === tab.value
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-stone-900 border border-stone-200'
+                  : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               {tab.label}
@@ -160,63 +159,62 @@ export function OrdersView({
 
         <div className="flex items-center gap-3">
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar comanda, mesa ou prato..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
             />
           </div>
           <button
             type="button"
             onClick={onNewOrder}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-md transition-colors whitespace-nowrap shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
-            Registrar Pedido
+            Novo Pedido
           </button>
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="px-6 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-          <span>{filtered.length} pedidos exibidos</span>
+      <div className="bg-white border border-stone-200 rounded-lg overflow-hidden">
+        <div className="px-6 py-3 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
+          <span>{filtered.length} pedidos</span>
           <span className="font-mono tabular-nums">
-            Volume em aberto: <strong className="text-slate-900">{formatCurrency(activeTotal)}</strong>
+            Em aberto: <strong className="text-stone-900">{formatCurrency(activeTotal)}</strong>
           </span>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="p-14 text-center">
-            <ClipboardList className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="mt-3 text-sm font-medium text-slate-800">
-              Nenhum pedido encontrado para este filtro.
+          <div className="p-12 text-center">
+            <ClipboardList className="w-7 h-7 text-stone-300 mx-auto" />
+            <p className="mt-3 text-sm font-medium text-stone-800">
+              Nenhum pedido encontrado.
             </p>
             <button
               type="button"
               onClick={onNewOrder}
-              className="mt-3 text-xs font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
+              className="mt-3 text-xs font-medium text-emerald-800 hover:text-emerald-900 underline underline-offset-2"
             >
-              Registrar novo pedido
+              Lançar pedido
             </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-medium text-slate-500">
+                <tr className="border-b border-stone-200 bg-stone-50/70 text-xs font-medium text-stone-500">
                   <th className="py-3 pl-6 pr-3">Comanda</th>
-                  <th className="py-3 px-3">Mesa Associada</th>
-                  <th className="py-3 px-3">Itens & Observações</th>
+                  <th className="py-3 px-3">Mesa</th>
+                  <th className="py-3 px-3">Itens</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Total</th>
                   <th className="py-3 pl-3 pr-6 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-stone-100 text-sm">
                 {filtered.map((order) => {
                   const total = order.items.reduce(
                     (sum, it) => sum + it.unitPrice * it.quantity,
@@ -227,15 +225,15 @@ export function OrdersView({
                   const canEdit = !order.paid && order.status !== 'cancelado';
 
                   return (
-                    <tr key={order.id} className="hover:bg-slate-50/80 transition-colors align-top">
+                    <tr key={order.id} className="hover:bg-stone-50/80 transition-colors align-top">
                       <td className="py-4 pl-6 pr-3 whitespace-nowrap">
-                        <div className="font-mono text-xs font-semibold text-slate-900 tabular-nums">
+                        <div className="font-mono text-xs font-semibold text-stone-900 tabular-nums">
                           {order.code}
                         </div>
-                        <div className="text-xs text-slate-500 font-mono tabular-nums mt-0.5">
+                        <div className="text-xs text-stone-500 font-mono tabular-nums mt-0.5">
                           {formatTimeShort(order.createdAt)} · {formatElapsed(elapsed)}
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
+                        <div className="text-[11px] text-stone-400 mt-0.5">
                           {order.origin} · {order.waiter}
                         </div>
                       </td>
@@ -248,7 +246,7 @@ export function OrdersView({
                             onChange={(e) =>
                               onAssignTable(order.id, e.target.value || null)
                             }
-                            className="px-2.5 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-700"
+                            className="px-2.5 py-1.5 text-xs font-medium bg-stone-50 border border-stone-200 rounded-md text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-800"
                           >
                             <option value="">Sem mesa (Balcão)</option>
                             {state.tables.map((t) => (
@@ -258,7 +256,7 @@ export function OrdersView({
                             ))}
                           </select>
                         ) : (
-                          <span className="text-xs font-medium text-slate-700">
+                          <span className="text-xs font-medium text-stone-700">
                             {order.tableLabel}
                           </span>
                         )}
@@ -267,8 +265,8 @@ export function OrdersView({
                       <td className="py-4 px-3 max-w-md">
                         <ul className="space-y-1">
                           {order.items.map((item) => (
-                            <li key={item.id} className="text-xs text-slate-800">
-                              <span className="font-mono font-semibold text-slate-900 tabular-nums mr-1.5">
+                            <li key={item.id} className="text-xs text-stone-800">
+                              <span className="font-mono font-semibold text-stone-900 tabular-nums mr-1.5">
                                 {item.quantity}×
                               </span>
                               <span>{item.name}</span>
@@ -298,16 +296,16 @@ export function OrdersView({
                               <button
                                 type="button"
                                 onClick={() => onUpdateOrderStatus(order.id, 'preparo')}
-                                className="text-[11px] font-medium text-slate-600 hover:text-teal-700 underline underline-offset-2"
+                                className="text-[11px] font-medium text-stone-600 hover:text-emerald-800 underline underline-offset-2"
                               >
-                                Enviar p/ preparo
+                                Iniciar preparo
                               </button>
                             )}
                             {order.status === 'preparo' && (
                               <button
                                 type="button"
                                 onClick={() => onUpdateOrderStatus(order.id, 'pronto')}
-                                className="text-[11px] font-medium text-slate-600 hover:text-emerald-700 underline underline-offset-2"
+                                className="text-[11px] font-medium text-stone-600 hover:text-emerald-700 underline underline-offset-2"
                               >
                                 Marcar pronto
                               </button>
@@ -319,14 +317,14 @@ export function OrdersView({
                                 className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-800 underline underline-offset-2"
                               >
                                 <CheckCircle2 className="w-3 h-3" />
-                                Marcar entregue
+                                Entregue
                               </button>
                             )}
                           </div>
                         )}
                       </td>
 
-                      <td className="py-4 px-3 text-right font-mono text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                      <td className="py-4 px-3 text-right font-mono text-sm font-semibold text-stone-900 tabular-nums whitespace-nowrap">
                         {formatCurrency(total)}
                       </td>
 
@@ -337,7 +335,7 @@ export function OrdersView({
                               type="button"
                               onClick={() => onEditOrder(order)}
                               title="Editar pedido"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:text-stone-900 hover:bg-stone-100 rounded-md transition-colors"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                               Editar
@@ -346,7 +344,7 @@ export function OrdersView({
                               type="button"
                               onClick={() => openCancelModal(order)}
                               title="Cancelar pedido"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
                             >
                               <XCircle className="w-3.5 h-3.5" />
                               Cancelar
@@ -357,13 +355,13 @@ export function OrdersView({
                             type="button"
                             disabled={busyId === order.id}
                             onClick={() => handleReopenOrder(order.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-teal-700 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-800 hover:text-emerald-900 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-50"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             Reabrir
                           </button>
                         ) : (
-                          <span className="text-xs text-slate-400">—</span>
+                          <span className="text-xs text-stone-400">—</span>
                         )}
                       </td>
                     </tr>
@@ -375,107 +373,87 @@ export function OrdersView({
         )}
       </div>
 
-      {/* Cancel Order Modal */}
-      {cancelTarget && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px]"
-        >
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">
-                  Cancelar Pedido {cancelTarget.code}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {cancelTarget.tableLabel} · {cancelTarget.items.length}{' '}
-                  {cancelTarget.items.length === 1 ? 'item' : 'itens'} ·{' '}
-                  {formatCurrency(
-                    cancelTarget.items.reduce(
-                      (s, it) => s + it.unitPrice * it.quantity,
-                      0,
-                    ),
-                  )}
-                </p>
+      <Modal
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        title={cancelTarget ? `Cancelar Pedido ${cancelTarget.code}` : ''}
+        subtitle={
+          cancelTarget
+            ? `${cancelTarget.tableLabel} · ${cancelTarget.items.length} ${
+                cancelTarget.items.length === 1 ? 'item' : 'itens'
+              } · ${formatCurrency(
+                cancelTarget.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0),
+              )}`
+            : undefined
+        }
+      >
+        {cancelTarget && (
+          <form onSubmit={handleConfirmCancel} className="p-5 space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1.5">
+                Motivo (opcional)
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {CANCEL_REASON_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setCancelReason(preset)}
+                    className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                      cancelReason === preset
+                        ? 'border-red-300 bg-red-50 text-red-700 font-medium'
+                        : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
               </div>
-              <button
-                type="button"
-                onClick={() => setCancelTarget(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg"
-                aria-label="Fechar modal"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <input
+                type="text"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Descreva o motivo..."
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
             </div>
 
-            <form onSubmit={handleConfirmCancel} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  Motivo do cancelamento (opcional)
-                </label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {CANCEL_REASON_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCancelReason(preset)}
-                      className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${
-                        cancelReason === preset
-                          ? 'border-red-300 bg-red-50 text-red-700 font-medium'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
+            {isLastOpenOrderOnTable(cancelTarget) && (
+              <label className="flex items-start gap-2.5 p-3 rounded-md bg-stone-50 border border-stone-200 text-xs text-stone-700 cursor-pointer">
                 <input
-                  type="text"
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Descreva o motivo..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                  type="checkbox"
+                  checked={releaseTableIfEmpty}
+                  onChange={(e) => setReleaseTableIfEmpty(e.target.checked)}
+                  className="mt-0.5 rounded border-stone-300 text-emerald-800 focus:ring-emerald-800"
                 />
-              </div>
+                <span>
+                  Liberar <strong className="text-stone-900">{cancelTarget.tableLabel}</strong>{' '}
+                  automaticamente ao cancelar.
+                </span>
+              </label>
+            )}
 
-              {isLastOpenOrderOnTable(cancelTarget) && (
-                <label className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={releaseTableIfEmpty}
-                    onChange={(e) => setReleaseTableIfEmpty(e.target.checked)}
-                    className="mt-0.5 rounded border-slate-300 text-teal-700 focus:ring-teal-700"
-                  />
-                  <span>
-                    Liberar <strong className="text-slate-900">{cancelTarget.tableLabel}</strong>{' '}
-                    automaticamente (este é o único pedido em aberto na mesa).
-                  </span>
-                </label>
-              )}
-
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  disabled={busyId === cancelTarget.id}
-                  onClick={() => setCancelTarget(null)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg"
-                >
-                  Voltar
-                </button>
-                <button
-                  type="submit"
-                  disabled={busyId === cancelTarget.id}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  {busyId === cancelTarget.id ? 'Cancelando...' : 'Confirmar Cancelamento'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="pt-3 border-t border-stone-200 flex justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={busyId === cancelTarget.id}
+                onClick={() => setCancelTarget(null)}
+                className="px-4 py-2 text-xs font-medium text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 rounded-md"
+              >
+                Voltar
+              </button>
+              <button
+                type="submit"
+                disabled={busyId === cancelTarget.id}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                {busyId === cancelTarget.id ? 'Cancelando...' : 'Confirmar'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

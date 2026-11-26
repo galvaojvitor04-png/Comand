@@ -4,13 +4,13 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  X,
   Users,
   Calendar,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
 import type { Reservation, ReservationStatus, RestaurantState, TableZone } from '../types.ts';
+import { Modal } from './Modal.tsx';
 
 interface ReservationsViewProps {
   state: RestaurantState;
@@ -32,8 +32,8 @@ const STATUS_FILTERS: Array<{ value: 'todas' | ReservationStatus; label: string 
 
 const RESERVATION_CANCEL_PRESETS = [
   'Desistência do cliente',
-  'Não compareceu (No-show)',
-  'Remarcação de horário',
+  'Não compareceu',
+  'Remarcação',
   'Erro no agendamento',
 ];
 
@@ -140,18 +140,17 @@ export function ReservationsView({
 
   return (
     <div className="space-y-6">
-      {/* Toolbar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-stone-200 rounded-lg p-4">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-stone-100 rounded-md">
           {STATUS_FILTERS.map((st) => (
             <button
               key={st.value}
               type="button"
               onClick={() => setStatusFilter(st.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors whitespace-nowrap shrink-0 ${
                 statusFilter === st.value
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-stone-900 border border-stone-200'
+                  : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               {st.label}
@@ -161,19 +160,19 @@ export function ReservationsView({
 
         <div className="flex items-center gap-3">
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar cliente ou telefone..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
             />
           </div>
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-md transition-colors whitespace-nowrap shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             Nova Reserva
@@ -181,60 +180,59 @@ export function ReservationsView({
         </div>
       </div>
 
-      {/* Reservations Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-stone-200 rounded-lg overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <Calendar className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="mt-3 text-sm font-medium text-slate-800">Nenhuma reserva encontrada.</p>
+            <Calendar className="w-8 h-8 text-stone-300 mx-auto" />
+            <p className="mt-3 text-sm font-medium text-stone-800">Nenhuma reserva encontrada.</p>
             <button
               type="button"
               onClick={() => setModalOpen(true)}
-              className="mt-3 text-xs font-medium text-teal-700 hover:text-teal-800 underline underline-offset-2"
+              className="mt-3 text-xs font-medium text-emerald-800 hover:text-emerald-900 underline underline-offset-2"
             >
-              Agendar nova reserva
+              Agendar reserva
             </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-medium text-slate-500">
-                  <th className="py-3 pl-6 pr-3">Horário</th>
+                <tr className="border-b border-stone-200 bg-stone-50/70 text-xs font-medium text-stone-500">
+                  <th className="py-3 pl-5 pr-3">Horário</th>
                   <th className="py-3 px-3">Cliente</th>
                   <th className="py-3 px-3">Lugares</th>
                   <th className="py-3 px-3">Ambiente / Mesa</th>
                   <th className="py-3 px-3">Status</th>
-                  <th className="py-3 pl-3 pr-6 text-right">Ações</th>
+                  <th className="py-3 pl-3 pr-5 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-stone-100 text-sm">
                 {filtered.map((res) => {
                   const assignedTable = res.tableId
                     ? state.tables.find((t) => t.id === res.tableId)
                     : null;
 
                   let statusText = 'Confirmada';
-                  let statusTone = 'text-emerald-700';
+                  let statusTone = 'text-emerald-800';
                   if (res.status === 'aguardando') {
                     statusText = 'Aguardando';
                     statusTone = 'text-amber-700';
                   } else if (res.status === 'sentada') {
                     statusText = 'Sentada';
-                    statusTone = 'text-teal-700';
+                    statusTone = 'text-stone-900';
                   } else if (res.status === 'cancelada') {
                     statusText = 'Cancelada';
-                    statusTone = 'text-slate-400';
+                    statusTone = 'text-stone-400';
                   }
 
                   return (
-                    <tr key={res.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-4 pl-6 pr-3 font-mono text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                    <tr key={res.id} className="hover:bg-stone-50/80 transition-colors">
+                      <td className="py-4 pl-5 pr-3 font-mono text-sm font-semibold text-stone-900 tabular-nums whitespace-nowrap">
                         {res.time}
                       </td>
                       <td className="py-4 px-3">
-                        <div className="font-medium text-slate-900">{res.customerName}</div>
-                        <div className="text-xs text-slate-500 font-mono">{res.phone || 'Sem telefone'}</div>
+                        <div className="font-medium text-stone-900">{res.customerName}</div>
+                        <div className="text-xs text-stone-500 font-mono">{res.phone || 'Sem telefone'}</div>
                         {res.notes && (
                           <div className="text-xs text-amber-700 mt-1">{res.notes}</div>
                         )}
@@ -245,30 +243,30 @@ export function ReservationsView({
                         )}
                       </td>
                       <td className="py-4 px-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 text-xs text-slate-700 tabular-nums">
-                          <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="inline-flex items-center gap-1.5 text-xs text-stone-700 tabular-nums">
+                          <Users className="w-3.5 h-3.5 text-stone-400" />
                           {res.guests} pessoas
                         </span>
                       </td>
-                      <td className="py-4 px-3 text-xs text-slate-600 whitespace-nowrap">
+                      <td className="py-4 px-3 text-xs text-stone-600 whitespace-nowrap">
                         {res.zonePreference}
                         {assignedTable && (
-                          <span className="text-slate-900 font-medium"> · {assignedTable.label}</span>
+                          <span className="text-stone-900 font-medium"> · {assignedTable.label}</span>
                         )}
                       </td>
                       <td className="py-4 px-3 whitespace-nowrap">
                         <span className={`text-xs font-semibold ${statusTone}`}>{statusText}</span>
                       </td>
-                      <td className="py-4 pl-3 pr-6 text-right whitespace-nowrap">
+                      <td className="py-4 pl-3 pr-5 text-right whitespace-nowrap">
                         {(res.status === 'confirmada' || res.status === 'aguardando') && (
                           <div className="inline-flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => handleSeatReservation(res)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-emerald-800 hover:bg-emerald-900 rounded-md transition-colors"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              Sentar Mesa
+                              Sentar
                             </button>
                             <button
                               type="button"
@@ -276,7 +274,7 @@ export function ReservationsView({
                                 setCancelTarget(res);
                                 setCancelReason('');
                               }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-md transition-colors"
                             >
                               <XCircle className="w-3.5 h-3.5" />
                               Cancelar
@@ -296,7 +294,7 @@ export function ReservationsView({
                                   setBusyId(null);
                                 }
                               }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-teal-700 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-800 hover:text-emerald-900 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-50"
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
                               Reativar
@@ -313,8 +311,8 @@ export function ReservationsView({
                                     setBusyId(null);
                                   }
                                 }}
-                                title="Remover reserva"
-                                className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors disabled:opacity-50"
+                                title="Excluir reserva"
+                                className="p-1.5 text-stone-400 hover:text-red-600 rounded-md transition-colors disabled:opacity-50"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -331,233 +329,204 @@ export function ReservationsView({
         )}
       </div>
 
-      {/* New Reservation Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px]">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900">Agendar Nova Reserva</h3>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Nova Reserva"
+      >
+        <form onSubmit={handleCreate} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-stone-700 mb-1">
+              Nome do cliente
+            </label>
+            <input
+              type="text"
+              required
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Nome completo"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+            />
+          </div>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1">
+                Telefone
+              </label>
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(11) 99999-0000"
+                className="w-full px-3 py-2 text-sm font-mono border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Nome completo do cliente
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  Horário
                 </label>
                 <input
-                  type="text"
+                  type="time"
                   required
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Ex: Fernanda Oliveira"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full px-2.5 py-2 text-sm font-mono border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Telefone / WhatsApp
-                  </label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(11) 99999-0000"
-                    className="w-full px-3 py-2 text-sm font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Horário
-                    </label>
-                    <input
-                      type="time"
-                      required
-                      value={time}
-                      onChange={(e) => setTime(e.target.value)}
-                      className="w-full px-2.5 py-2 text-sm font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Pessoas
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={16}
-                      required
-                      value={guests}
-                      onChange={(e) => setGuests(e.target.value)}
-                      className="w-full px-2.5 py-2 text-sm font-mono border border-slate-200 rounded-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-700"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Preferência de ambiente
-                  </label>
-                  <select
-                    value={zonePreference}
-                    onChange={(e) => setZonePreference(e.target.value as TableZone)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  >
-                    <option value="Salão Principal">Salão Principal</option>
-                    <option value="Terraço">Terraço</option>
-                    <option value="Balcão">Balcão</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Pré-alocar mesa (opcional)
-                  </label>
-                  <select
-                    value={tableId}
-                    onChange={(e) => setTableId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
-                  >
-                    <option value="">Definir na chegada</option>
-                    {freeTables.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label} ({t.seats} lug.)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Observações (alergias, ocasião especial)
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  Pessoas
                 </label>
                 <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex: Cadeira infantil, aniversário..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+                  type="number"
+                  min={1}
+                  max={16}
+                  required
+                  value={guests}
+                  onChange={(e) => setGuests(e.target.value)}
+                  className="w-full px-2.5 py-2 text-sm font-mono border border-stone-200 rounded-md tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-800"
                 />
               </div>
-
-              <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50"
-                >
-                  {saving ? 'Salvando...' : 'Confirmar Reserva'}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Cancel Reservation Modal */}
-      {cancelTarget && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px]"
-        >
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">
-                  Cancelar Reserva
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {cancelTarget.customerName} · {cancelTarget.time} · {cancelTarget.guests} pessoas
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCancelTarget(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg"
-                aria-label="Fechar modal"
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1">
+                Ambiente
+              </label>
+              <select
+                value={zonePreference}
+                onChange={(e) => setZonePreference(e.target.value as TableZone)}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-emerald-800"
               >
-                <X className="w-4 h-4" />
-              </button>
+                <option value="Salão Principal">Salão Principal</option>
+                <option value="Terraço">Terraço</option>
+                <option value="Balcão">Balcão</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1">
+                Mesa (opcional)
+              </label>
+              <select
+                value={tableId}
+                onChange={(e) => setTableId(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-emerald-800"
+              >
+                <option value="">Definir na chegada</option>
+                {freeTables.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label} ({t.seats} lug.)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-stone-700 mb-1">
+              Observações
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Cadeira infantil, aniversário..."
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+            />
+          </div>
+
+          <div className="pt-4 border-t border-stone-200 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="px-4 py-2 text-xs font-medium text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 rounded-md"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-md disabled:opacity-50"
+            >
+              {saving ? 'Salvando...' : 'Confirmar Reserva'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        title="Cancelar Reserva"
+        subtitle={
+          cancelTarget
+            ? `${cancelTarget.customerName} · ${cancelTarget.time} · ${cancelTarget.guests} pessoas`
+            : undefined
+        }
+      >
+        {cancelTarget && (
+          <form onSubmit={handleConfirmCancelReservation} className="p-5 space-y-4">
+            {cancelTarget.tableId && (
+              <div className="p-3 rounded-md bg-stone-50 border border-stone-200 text-xs text-stone-700">
+                A mesa pré-alocada voltará ao status{' '}
+                <strong className="text-emerald-800">Livre</strong>.
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-stone-700 mb-1.5">
+                Motivo (opcional)
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {RESERVATION_CANCEL_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setCancelReason(preset)}
+                    className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                      cancelReason === preset
+                        ? 'border-red-300 bg-red-50 text-red-700 font-medium'
+                        : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Descreva o motivo..."
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
             </div>
 
-            <form onSubmit={handleConfirmCancelReservation} className="p-6 space-y-4">
-              {cancelTarget.tableId && (
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
-                  A mesa pré-alocada para esta reserva voltará ao status{' '}
-                  <strong className="text-emerald-700">Livre</strong> automaticamente.
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  Motivo do cancelamento (opcional)
-                </label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {RESERVATION_CANCEL_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCancelReason(preset)}
-                      className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${
-                        cancelReason === preset
-                          ? 'border-red-300 bg-red-50 text-red-700 font-medium'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Descreva o motivo..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  disabled={busyId === cancelTarget.id}
-                  onClick={() => setCancelTarget(null)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg"
-                >
-                  Voltar
-                </button>
-                <button
-                  type="submit"
-                  disabled={busyId === cancelTarget.id}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  {busyId === cancelTarget.id ? 'Cancelando...' : 'Confirmar Cancelamento'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="pt-3 border-t border-stone-200 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={busyId === cancelTarget.id}
+                onClick={() => setCancelTarget(null)}
+                className="px-4 py-2 text-xs font-medium text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 rounded-md"
+              >
+                Voltar
+              </button>
+              <button
+                type="submit"
+                disabled={busyId === cancelTarget.id}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                {busyId === cancelTarget.id ? 'Cancelando...' : 'Confirmar Cancelamento'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

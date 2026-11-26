@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface ManagerSetupScreenProps {
   onCompleteSetup: (payload: {
@@ -27,11 +27,11 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
       return;
     }
     if (!/^\d{4}$/.test(pin)) {
-      setError('Crie um PIN numérico com exatamente 4 dígitos.');
+      setError('Crie um PIN numérico de 4 dígitos.');
       return;
     }
     if (confirmPin !== pin) {
-      setError('A confirmação do PIN não confere.');
+      setError('Os PINs digitados não conferem.');
       return;
     }
 
@@ -52,29 +52,27 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-8">
-      <div className="w-full max-w-xl bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 sm:p-8">
+      <div className="w-full max-w-lg bg-white border border-stone-200 rounded-lg overflow-hidden">
+        <div className="px-6 py-5 border-b border-stone-200 flex items-center justify-between gap-4">
           <div>
-            <div className="font-display text-lg font-bold tracking-tight text-slate-900">
+            <div className="font-display text-lg font-bold tracking-tight text-stone-900">
               Comanda & Co.
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Configuração inicial do sistema · Cadastro do Gerente Geral
+            <p className="text-xs text-stone-500 mt-0.5">
+              Primeiro acesso · Gerente Geral
             </p>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
-            <UserPlus className="w-4 h-4 text-teal-700" />
-          </div>
+          <ShieldCheck className="w-5 h-5 text-emerald-800 shrink-0" />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
-            <h1 className="text-base font-semibold text-slate-900">
-              Cadastre o Gerente Geral para iniciar
+            <h1 className="text-base font-semibold text-stone-900">
+              Cadastro do responsável
             </h1>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              O sistema está limpo e pronto para uso. Informe seu nome e crie um PIN secreto de 4 dígitos para proteger o acesso gerencial.
+            <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+              Informe seu nome e crie um PIN de 4 dígitos para liberar o terminal.
             </p>
           </div>
 
@@ -82,9 +80,9 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
             <div>
               <label
                 htmlFor="setup-gm-name"
-                className="block text-xs font-medium text-slate-700 mb-1.5"
+                className="block text-xs font-medium text-stone-700 mb-1.5"
               >
-                Nome do Gerente Geral
+                Nome completo
               </label>
               <input
                 id="setup-gm-name"
@@ -97,16 +95,16 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
                   setName(e.target.value);
                 }}
                 placeholder="Ex: João Vitor Silva"
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
               />
             </div>
 
             <div>
               <label
                 htmlFor="setup-gm-email"
-                className="block text-xs font-medium text-slate-700 mb-1.5"
+                className="block text-xs font-medium text-stone-700 mb-1.5"
               >
-                E-mail corporativo (opcional)
+                E-mail (opcional)
               </label>
               <input
                 id="setup-gm-email"
@@ -114,7 +112,7 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="gerencia@restaurante.com.br"
-                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
               />
             </div>
 
@@ -123,14 +121,14 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
                 <div className="flex items-center justify-between mb-1.5">
                   <label
                     htmlFor="setup-gm-pin"
-                    className="text-xs font-medium text-slate-700"
+                    className="text-xs font-medium text-stone-700"
                   >
-                    Criar PIN de acesso (4 dígitos)
+                    PIN de acesso (4 dígitos)
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowPin((prev) => !prev)}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-900"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 hover:text-stone-900"
                   >
                     {showPin ? (
                       <>
@@ -140,7 +138,7 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
                     ) : (
                       <>
                         <Eye className="w-3 h-3" />
-                        Ver ao digitar
+                        Mostrar
                       </>
                     )}
                   </button>
@@ -157,16 +155,16 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
                     setPin(e.target.value.replace(/\D/g, '').slice(0, 4));
                   }}
                   placeholder="••••"
-                  className="w-full px-3.5 py-2.5 text-center font-mono text-lg tracking-[0.4em] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700 tabular-nums"
+                  className="w-full px-3.5 py-2.5 text-center font-mono text-lg tracking-[0.4em] bg-white border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800 tabular-nums"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="setup-gm-pin-confirm"
-                  className="block text-xs font-medium text-slate-700 mb-1.5"
+                  className="block text-xs font-medium text-stone-700 mb-1.5"
                 >
-                  Confirmar PIN (4 dígitos)
+                  Confirmar PIN
                 </label>
                 <input
                   id="setup-gm-pin-confirm"
@@ -180,18 +178,15 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
                     setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4));
                   }}
                   placeholder="••••"
-                  className="w-full px-3.5 py-2.5 text-center font-mono text-lg tracking-[0.4em] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700 tabular-nums"
+                  className="w-full px-3.5 py-2.5 text-center font-mono text-lg tracking-[0.4em] bg-white border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800 tabular-nums"
                 />
               </div>
             </div>
           </div>
 
-          <div className="px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-xs text-slate-600">
-            <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
-            <span>
-              Por segurança, o PIN do Gerente Geral nunca fica visível nas telas do sistema após o cadastro.
-            </span>
-          </div>
+          <p className="text-xs text-stone-500">
+            Após o cadastro, o PIN gerencial permanece oculto em todas as telas.
+          </p>
 
           {error && (
             <p role="alert" className="text-xs font-medium text-red-600">
@@ -202,9 +197,9 @@ export function ManagerSetupScreen({ onCompleteSetup }: ManagerSetupScreenProps)
           <button
             type="submit"
             disabled={submitting || name.trim().length < 2 || pin.length !== 4 || confirmPin.length !== 4}
-            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors disabled:opacity-40"
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-md transition-colors disabled:opacity-40"
           >
-            <span>{submitting ? 'Salvando cadastro...' : 'Concluir Cadastro e Iniciar Sistema'}</span>
+            <span>{submitting ? 'Salvando...' : 'Concluir e Entrar'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

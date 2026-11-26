@@ -32,13 +32,74 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'restaurant-db.json');
 
-function minutesAgo(mins: number): string {
-  return new Date(Date.now() - mins * 60_000).toISOString();
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function todayDateStr(): string {
-  const now = new Date();
-  return now.toISOString().slice(0, 10);
+function resolveDefaultWaiter(currentState: RestaurantState): string {
+  const activeWaiter = currentState.staff.find(
+    (s) => s.role === 'Garçom' && s.status === 'em_turno',
+  );
+  if (activeWaiter) return activeWaiter.name;
+  if (currentState.managerProfile.name) return currentState.managerProfile.name;
+  return 'Equipe Salão';
+}
+
+function occupyTable(table: RestaurantTable, guests?: number, waiter?: string): void {
+  const nowIso = new Date().toISOString();
+  table.status = 'ocupada';
+  if (!table.seatedAt) {
+    table.seatedAt = nowIso;
+  }
+  if (typeof guests === 'number' && guests > 0) {
+    table.guests = guests;
+  } else if (table.guests === 0) {
+    table.guests = 2;
+  }
+  if (waiter && !table.waiter) {
+    table.waiter = waiter;
+  }
+}
+
+function releaseTable(table: RestaurantTable, nextStatus: 'livre' | 'limpeza' = 'livre'): void {
+  table.status = nextStatus;
+  table.guests = 0;
+  table.seatedAt = null;
+  if (nextStatus === 'livre') {
+    table.waiter = '';
+  }
+}
+
+function recordAccessLog(
+  currentState: RestaurantState,
+  entry: Omit<AccessLogEntry, 'id' | 'timestamp'>,
+): void {
+  currentState.accessLogs.unshift({
+    id: `al_${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    ...entry,
+  });
+  currentState.accessLogs = currentState.accessLogs.slice(0, 30);
+}
+
+function buildOrderItems(
+  menu: MenuItem[],
+  entries: Array<{ menuItemId: string; quantity: number; notes?: string }>,
+) {
+  return entries
+    .map((entry, idx) => {
+      const dish = menu.find((m) => m.id === entry.menuItemId);
+      if (!dish || entry.quantity <= 0) return null;
+      return {
+        id: `oi_${Date.now()}_${idx}`,
+        menuItemId: dish.id,
+        name: dish.name,
+        quantity: entry.quantity,
+        unitPrice: dish.price,
+        notes: entry.notes?.trim() || undefined,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
 }
 
 function createSeedState(): RestaurantState {
@@ -213,7 +274,7 @@ async function startServer(): Promise<void> {
   const app = express();
   app.use(express.json());
 
-  // Always mask Gerente PINs before sending state or staff payloads to clients
+  // Garante que o PIN de Gerente nunca saia da API sem máscara
   app.use((_req, res, next) => {
     const origJson = res.json.bind(res);
     res.json = ((body: unknown) => {
@@ -236,12 +297,10 @@ async function startServer(): Promise<void> {
     next();
   });
 
-  // Full state endpoint
   app.get('/api/state', (_req, res) => {
     res.json(sanitizeState(state));
   });
 
-  // Initial General Manager Onboarding (Nome + PIN)
   app.post('/api/setup/manager', (req, res) => {
     if (state.setupCompleted && state.staff.some((s) => s.role === 'Gerente')) {
       res.status(400).json({ error: 'O Gerente Geral já foi cadastrado neste sistema.' });
@@ -296,13 +355,11 @@ async function startServer(): Promise<void> {
 
     state.staff = [gmMember, ...state.staff.filter((s) => s.id !== 's1' && s.role !== 'Gerente')];
     state.setupCompleted = true;
-    state.accessLogs.unshift({
-      id: `al_${Date.now()}`,
+    recordAccessLog(state, {
       staffId: gmMember.id,
       staffName: gmMember.name,
       role: gmMember.role,
       action: 'login',
-      timestamp: nowIso,
       detail: 'Cadastro inicial do Gerente Geral concluído',
     });
 
@@ -310,7 +367,6 @@ async function startServer(): Promise<void> {
     res.status(201).json({ operator: sanitizeStaffMember(gmMember), state: sanitizeState(state) });
   });
 
-  // Cash Register: Open Session
   app.post('/api/cash/open', (req, res) => {
     if (state.cashRegister.currentSession?.status === 'aberto') {
       res.status(400).json({ error: 'Já existe um caixa aberto no momento.' });
@@ -355,7 +411,6 @@ async function startServer(): Promise<void> {
     res.status(201).json({ session, state: sanitizeState(state) });
   });
 
-  // Cash Register: Movement (Suprimento / Sangria)
   app.post('/api/cash/movement', (req, res) => {
     const session = state.cashRegister.currentSession;
     if (!session || session.status !== 'aberto') {
@@ -402,7 +457,6 @@ async function startServer(): Promise<void> {
     res.status(201).json({ movement, session, state: sanitizeState(state) });
   });
 
-  // Cash Register: Close Session
   app.post('/api/cash/close', (req, res) => {
     const session = state.cashRegister.currentSession;
     if (!session || session.status !== 'aberto') {
@@ -435,7 +489,6 @@ async function startServer(): Promise<void> {
     res.json({ session, state: sanitizeState(state) });
   });
 
-  // Create new table in floor plan
   app.post('/api/tables', (req, res) => {
     const {
       number,
@@ -514,7 +567,6 @@ async function startServer(): Promise<void> {
     res.status(201).json({ table: newTable, state });
   });
 
-  // Update table metadata/status
   app.patch('/api/tables/:id', (req, res) => {
     const { id } = req.params;
     const { status, guests, waiter, label, seats, zone } = req.body as {
@@ -533,13 +585,10 @@ async function startServer(): Promise<void> {
 
     if (status) {
       table.status = status;
-      if (status === 'ocupada' && !table.seatedAt) {
-        table.seatedAt = new Date().toISOString();
-      }
-      if (status === 'livre' || status === 'limpeza') {
-        table.guests = 0;
-        table.seatedAt = null;
-        if (status === 'livre') table.waiter = '';
+      if (status === 'ocupada') {
+        occupyTable(table, guests, waiter);
+      } else if (status === 'livre' || status === 'limpeza') {
+        releaseTable(table, status);
       }
     }
     if (typeof guests === 'number') {
@@ -562,7 +611,6 @@ async function startServer(): Promise<void> {
     res.json({ table, state });
   });
 
-  // Delete an idle table from floor plan
   app.delete('/api/tables/:id', (req, res) => {
     const { id } = req.params;
     const table = state.tables.find((t) => t.id === id);
@@ -591,7 +639,6 @@ async function startServer(): Promise<void> {
     res.json({ state });
   });
 
-  // Close table bill & record financial transaction
   app.post('/api/tables/:id/close', (req, res) => {
     const { id } = req.params;
     const {
@@ -657,21 +704,17 @@ async function startServer(): Promise<void> {
       order.updatedAt = new Date().toISOString();
     }
 
-    table.status = nextStatus === 'limpeza' ? 'limpeza' : 'livre';
-    table.guests = 0;
-    table.seatedAt = null;
-    table.waiter = '';
+    releaseTable(table, nextStatus === 'limpeza' ? 'limpeza' : 'livre');
 
     saveState(state);
     res.json({ transaction, state });
   });
 
-  // Create new order (POS / Table)
   app.post('/api/orders', (req, res) => {
     const {
       tableId,
       origin = 'Salão',
-      waiter = 'Equipe Salão',
+      waiter,
       guests,
       items,
     } = req.body as {
@@ -687,6 +730,7 @@ async function startServer(): Promise<void> {
       return;
     }
 
+    const resolvedWaiter = waiter?.trim() || resolveDefaultWaiter(state);
     let tableLabel = origin === 'Retirada' ? 'Retirada Balcão' : 'Balcão Rápido';
     if (tableId) {
       const table = state.tables.find((t) => t.id === tableId);
@@ -695,35 +739,10 @@ async function startServer(): Promise<void> {
         return;
       }
       tableLabel = table.label;
-      table.status = 'ocupada';
-      if (!table.seatedAt) {
-        table.seatedAt = new Date().toISOString();
-      }
-      if (typeof guests === 'number' && guests > 0) {
-        table.guests = guests;
-      } else if (table.guests === 0) {
-        table.guests = 2;
-      }
-      if (waiter) {
-        table.waiter = waiter;
-      }
+      occupyTable(table, guests, resolvedWaiter);
     }
 
-    const orderItems = items
-      .map((entry, idx) => {
-        const dish = state.menu.find((m) => m.id === entry.menuItemId);
-        if (!dish || entry.quantity <= 0) return null;
-        return {
-          id: `oi_${Date.now()}_${idx}`,
-          menuItemId: dish.id,
-          name: dish.name,
-          quantity: entry.quantity,
-          unitPrice: dish.price,
-          notes: entry.notes?.trim() || undefined,
-        };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
-
+    const orderItems = buildOrderItems(state.menu, items);
     if (orderItems.length === 0) {
       res.status(400).json({ error: 'Nenhum item válido encontrado.' });
       return;
@@ -737,7 +756,7 @@ async function startServer(): Promise<void> {
       tableId: tableId || null,
       tableLabel,
       origin,
-      waiter,
+      waiter: resolvedWaiter,
       status: 'pendente',
       items: orderItems,
       createdAt: nowIso,
@@ -750,7 +769,6 @@ async function startServer(): Promise<void> {
     res.status(201).json({ order: newOrder, state });
   });
 
-  // Update full order (items, quantities, notes, table, waiter, origin)
   app.put('/api/orders/:id', (req, res) => {
     const { id } = req.params;
     const order = state.orders.find((o) => o.id === id);
@@ -777,15 +795,9 @@ async function startServer(): Promise<void> {
       items?: Array<{ menuItemId: string; quantity: number; notes?: string }>;
     };
 
-    if (origin) {
-      order.origin = origin;
-    }
-    if (typeof waiter === 'string' && waiter.trim()) {
-      order.waiter = waiter.trim();
-    }
-    if (status) {
-      order.status = status;
-    }
+    if (origin) order.origin = origin;
+    if (typeof waiter === 'string' && waiter.trim()) order.waiter = waiter.trim();
+    if (status) order.status = status;
 
     if (tableId !== undefined) {
       if (tableId) {
@@ -796,10 +808,7 @@ async function startServer(): Promise<void> {
         }
         order.tableId = targetTable.id;
         order.tableLabel = targetTable.label;
-        targetTable.status = 'ocupada';
-        if (!targetTable.seatedAt) targetTable.seatedAt = new Date().toISOString();
-        if (targetTable.guests === 0) targetTable.guests = 2;
-        if (!targetTable.waiter) targetTable.waiter = order.waiter;
+        occupyTable(targetTable, undefined, order.waiter);
       } else {
         order.tableId = null;
         order.tableLabel = order.origin === 'Retirada' ? 'Retirada Balcão' : 'Aguardando Mesa';
@@ -807,21 +816,7 @@ async function startServer(): Promise<void> {
     }
 
     if (Array.isArray(items)) {
-      const updatedItems = items
-        .map((entry, idx) => {
-          const dish = state.menu.find((m) => m.id === entry.menuItemId);
-          if (!dish || entry.quantity <= 0) return null;
-          return {
-            id: `oi_${Date.now()}_${idx}`,
-            menuItemId: dish.id,
-            name: dish.name,
-            quantity: entry.quantity,
-            unitPrice: dish.price,
-            notes: entry.notes?.trim() || undefined,
-          };
-        })
-        .filter((x): x is NonNullable<typeof x> => x !== null);
-
+      const updatedItems = buildOrderItems(state.menu, items);
       if (updatedItems.length === 0) {
         res.status(400).json({ error: 'O pedido precisa de ao menos um item válido.' });
         return;
@@ -834,7 +829,6 @@ async function startServer(): Promise<void> {
     res.json({ order, state });
   });
 
-  // Associate or move an existing order to a table
   app.patch('/api/orders/:id/assign-table', (req, res) => {
     const { id } = req.params;
     const { tableId } = req.body as { tableId: string | null };
@@ -853,10 +847,7 @@ async function startServer(): Promise<void> {
       order.tableId = table.id;
       order.tableLabel = table.label;
       order.origin = table.zone === 'Balcão' ? 'Balcão' : 'Salão';
-      table.status = 'ocupada';
-      if (!table.seatedAt) table.seatedAt = new Date().toISOString();
-      if (table.guests === 0) table.guests = 2;
-      if (!table.waiter) table.waiter = order.waiter;
+      occupyTable(table, undefined, order.waiter);
     } else {
       order.tableId = null;
       order.tableLabel = order.origin === 'Retirada' ? 'Retirada Balcão' : 'Aguardando Mesa';
@@ -867,7 +858,6 @@ async function startServer(): Promise<void> {
     res.json({ order, state });
   });
 
-  // Update order status (KDS workflow, cancellation & reopen)
   app.patch('/api/orders/:id/status', (req, res) => {
     const { id } = req.params;
     const { status, cancelReason, releaseTableIfEmpty } = req.body as {
@@ -918,10 +908,7 @@ async function startServer(): Promise<void> {
         if (!hasOtherOpenOrders) {
           const table = state.tables.find((t) => t.id === order.tableId);
           if (table && table.status === 'ocupada') {
-            table.status = 'livre';
-            table.guests = 0;
-            table.seatedAt = null;
-            table.waiter = '';
+            releaseTable(table, 'livre');
           }
         }
       }
@@ -932,10 +919,7 @@ async function startServer(): Promise<void> {
       if (order.tableId) {
         const table = state.tables.find((t) => t.id === order.tableId);
         if (table && table.status === 'livre') {
-          table.status = 'ocupada';
-          table.seatedAt = nowIso;
-          if (table.guests === 0) table.guests = 2;
-          if (!table.waiter) table.waiter = order.waiter;
+          occupyTable(table, undefined, order.waiter);
         }
       }
     }
@@ -944,7 +928,6 @@ async function startServer(): Promise<void> {
     res.json({ order, state });
   });
 
-  // Direct POS Sale (Balcão / Retirada immediate checkout + kitchen dispatch)
   app.post('/api/pos/sale', (req, res) => {
     const {
       customerLabel = 'Cliente Balcão',
@@ -975,21 +958,7 @@ async function startServer(): Promise<void> {
       return;
     }
 
-    const orderItems = items
-      .map((entry, idx) => {
-        const dish = state.menu.find((m) => m.id === entry.menuItemId);
-        if (!dish || entry.quantity <= 0) return null;
-        return {
-          id: `oi_${Date.now()}_${idx}`,
-          menuItemId: dish.id,
-          name: dish.name,
-          quantity: entry.quantity,
-          unitPrice: dish.price,
-          notes: entry.notes?.trim() || undefined,
-        };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
-
+    const orderItems = buildOrderItems(state.menu, items);
     if (orderItems.length === 0) {
       res.status(400).json({ error: 'Nenhum item válido para finalizar a venda.' });
       return;
@@ -1038,7 +1007,7 @@ async function startServer(): Promise<void> {
     res.status(201).json({ order, transaction, state });
   });
 
-  // Menu management
+  // Cardápio
   app.post('/api/menu', (req, res) => {
     const payload = req.body as Omit<MenuItem, 'id' | 'sku'> & { sku?: string };
     if (!payload.name || typeof payload.price !== 'number') {
@@ -1081,7 +1050,7 @@ async function startServer(): Promise<void> {
     res.json({ state });
   });
 
-  // Reservations
+  // Reservas
   app.post('/api/reservations', (req, res) => {
     const payload = req.body as Omit<Reservation, 'id' | 'status'>;
     if (!payload.customerName || !payload.time) {
@@ -1133,10 +1102,7 @@ async function startServer(): Promise<void> {
       if (status === 'sentada' && reservation.tableId) {
         const table = state.tables.find((t) => t.id === reservation.tableId);
         if (table) {
-          table.status = 'ocupada';
-          table.guests = reservation.guests;
-          table.seatedAt = new Date().toISOString();
-          if (!table.waiter) table.waiter = 'Rafael Souza';
+          occupyTable(table, reservation.guests, resolveDefaultWaiter(state));
         }
       } else if (status === 'cancelada') {
         reservation.cancelledAt = new Date().toISOString();
@@ -1183,7 +1149,7 @@ async function startServer(): Promise<void> {
     res.json({ state });
   });
 
-  // Inventory
+  // Estoque
   app.post('/api/inventory', (req, res) => {
     const payload = req.body as Omit<InventoryItem, 'id' | 'updatedAt'>;
     if (!payload.name) {
@@ -1231,7 +1197,7 @@ async function startServer(): Promise<void> {
     res.json({ item, state });
   });
 
-  // Staff / Team management
+  // Equipe e colaboradores
   app.post('/api/staff', (req, res) => {
     const payload = req.body as Omit<StaffMember, 'id'>;
     if (!payload.name?.trim()) {
@@ -1295,7 +1261,7 @@ async function startServer(): Promise<void> {
     res.json({ state });
   });
 
-  // General Manager profile update
+  // Perfil do Gerente Geral
   app.patch('/api/manager', (req, res) => {
     const { name, email, role } = req.body as Partial<ManagerProfile>;
     if (typeof name === 'string' && name.trim()) {
@@ -1318,7 +1284,7 @@ async function startServer(): Promise<void> {
     res.json({ managerProfile: state.managerProfile, state });
   });
 
-  // Access Control Panel: Authenticate operator via Cargo (role) + PIN
+  // Autenticação por cargo e PIN
   app.post('/api/access/login', (req, res) => {
     const { staffId, role, pin } = req.body as {
       staffId?: string;
@@ -1359,13 +1325,11 @@ async function startServer(): Promise<void> {
         return;
       }
       if (candidate.accessEnabled === false) {
-        state.accessLogs.unshift({
-          id: `al_${Date.now()}`,
+        recordAccessLog(state, {
           staffId: candidate.id,
           staffName: candidate.name,
           role: candidate.role,
           action: 'acesso_bloqueado',
-          timestamp: new Date().toISOString(),
           detail: 'Tentativa de entrada com acesso bloqueado',
         });
         saveState(state);
@@ -1388,13 +1352,11 @@ async function startServer(): Promise<void> {
       const enabledMatch = matchesInRole.find((s) => s.accessEnabled !== false);
       if (!enabledMatch) {
         const blocked = matchesInRole[0];
-        state.accessLogs.unshift({
-          id: `al_${Date.now()}`,
+        recordAccessLog(state, {
           staffId: blocked.id,
           staffName: blocked.name,
           role: blocked.role,
           action: 'acesso_bloqueado',
-          timestamp: new Date().toISOString(),
           detail: 'Tentativa de entrada com acesso bloqueado',
         });
         saveState(state);
@@ -1404,41 +1366,33 @@ async function startServer(): Promise<void> {
       member = enabledMatch;
     }
 
-    state.accessLogs.unshift({
-      id: `al_${Date.now()}`,
+    recordAccessLog(state, {
       staffId: member.id,
       staffName: member.name,
       role: member.role,
       action: 'login',
-      timestamp: new Date().toISOString(),
       detail: `Sessão iniciada como ${member.role}`,
     });
-    state.accessLogs = state.accessLogs.slice(0, 30);
     saveState(state);
     res.json({ operator: member, state });
   });
 
-  // Access Control Panel: Record terminal lock
   app.post('/api/access/lock', (req, res) => {
     const { staffId } = req.body as { staffId?: string };
     const member = state.staff.find((s) => s.id === staffId) || state.staff[0];
     if (member) {
-      state.accessLogs.unshift({
-        id: `al_${Date.now()}`,
+      recordAccessLog(state, {
         staffId: member.id,
         staffName: member.name,
         role: member.role,
         action: 'bloqueio',
-        timestamp: new Date().toISOString(),
         detail: 'Terminal bloqueado manualmente',
       });
-      state.accessLogs = state.accessLogs.slice(0, 30);
       saveState(state);
     }
     res.json({ state });
   });
 
-  // Access Control Panel: Update role permissions
   app.patch('/api/access/permissions', (req, res) => {
     const { role, modules } = req.body as { role: StaffRole; modules: NavSection[] };
     if (!role || !Array.isArray(modules)) {
@@ -1450,21 +1404,17 @@ async function startServer(): Promise<void> {
       : modules;
 
     state.rolePermissions[role] = sanitized;
-    state.accessLogs.unshift({
-      id: `al_${Date.now()}`,
+    recordAccessLog(state, {
       staffId: 's1',
       staffName: state.managerProfile.name,
       role: 'Gerente',
       action: 'permissao_alterada',
-      timestamp: new Date().toISOString(),
       detail: `Permissões de ${role} atualizadas (${sanitized.length} módulos)`,
     });
-    state.accessLogs = state.accessLogs.slice(0, 30);
     saveState(state);
     res.json({ rolePermissions: state.rolePermissions, state });
   });
 
-  // Reset demo data if user wants fresh start
   app.post('/api/reset', (_req, res) => {
     state = createSeedState();
     saveState(state);
@@ -1502,15 +1452,15 @@ async function startServer(): Promise<void> {
           const patched = result.code
             .replace(
               'await wsTransport.connect(handlers);',
-              '/* HMR disabled: WebSocket connect skipped */',
+              '/* HMR desativado: conexão WebSocket ignorada */',
             )
             .replace(
               'await wsTransport.disconnect();',
-              '/* HMR disabled: WebSocket disconnect skipped */',
+              '/* HMR desativado: desconexão WebSocket ignorada */',
             )
             .replace(
               'wsTransport.send(data);',
-              '/* HMR disabled: WebSocket send skipped */',
+              '/* HMR desativado: envio WebSocket ignorado */',
             );
           res
             .status(200)

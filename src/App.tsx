@@ -48,6 +48,7 @@ import { AccessPanelView } from './components/AccessPanelView.tsx';
 import { AccessLockScreen } from './components/AccessLockScreen.tsx';
 import { ManagerSetupScreen } from './components/ManagerSetupScreen.tsx';
 import { OrderComposerModal } from './components/OrderComposerModal.tsx';
+import { Modal } from './components/Modal.tsx';
 import { PWAInstallButton } from './components/PWAInstallButton.tsx';
 import { OfflineIndicator } from './components/OfflineIndicator.tsx';
 
@@ -62,21 +63,21 @@ const NAV_ITEMS: Array<{ id: NavSection; label: string; Icon: typeof LayoutDashb
   { id: 'reservations', label: 'Reservas', Icon: CalendarClock },
   { id: 'inventory', label: 'Estoque', Icon: Package },
   { id: 'staff', label: 'Equipe', Icon: Users },
-  { id: 'access', label: 'Painel de Acesso', Icon: ShieldCheck },
+  { id: 'access', label: 'Acessos', Icon: ShieldCheck },
 ];
 
 const SECTION_TITLE: Record<NavSection, string> = {
   overview: 'Visão Geral',
-  pdv: 'PDV / Ponto de Venda',
-  cash: 'Abertura & Fechamento de Caixa',
-  orders: 'Gestão de Pedidos',
+  pdv: 'PDV',
+  cash: 'Caixa',
+  orders: 'Pedidos',
   floor: 'Salão & Mesas',
-  kds: 'Cozinha (KDS)',
+  kds: 'Cozinha',
   menu: 'Cardápio',
   reservations: 'Reservas',
   inventory: 'Estoque',
-  staff: 'Equipe & Escalas',
-  access: 'Painel de Acesso',
+  staff: 'Equipe',
+  access: 'Controle de Acesso',
 };
 
 export default function App() {
@@ -156,11 +157,7 @@ export default function App() {
       status,
       ...(options || {}),
     });
-    showToast(
-      status === 'cancelado'
-        ? 'Pedido cancelado.'
-        : 'Status da comanda atualizado.',
-    );
+    showToast(status === 'cancelado' ? 'Pedido cancelado.' : 'Status do pedido atualizado.');
   };
 
   const handleUpdateOrder = async (
@@ -173,12 +170,12 @@ export default function App() {
     },
   ) => {
     await apiMutate(`/api/orders/${orderId}`, 'PUT', payload);
-    showToast('Pedido atualizado com sucesso.');
+    showToast('Pedido atualizado.');
   };
 
   const handleAssignOrderToTable = async (orderId: string, tableId: string | null) => {
     await apiMutate(`/api/orders/${orderId}/assign-table`, 'PATCH', { tableId });
-    showToast(tableId ? 'Pedido associado à mesa.' : 'Pedido desvinculado da mesa.');
+    showToast(tableId ? 'Pedido vinculado à mesa.' : 'Pedido desvinculado da mesa.');
   };
 
   const handleCreateTable = async (payload: {
@@ -217,8 +214,8 @@ export default function App() {
     await apiMutate(`/api/tables/${tableId}/close`, 'POST', payload);
     showToast(
       payload.nextStatus === 'livre'
-        ? 'Pagamento registrado e mesa liberada.'
-        : 'Pagamento registrado e mesa marcada para limpeza.',
+        ? 'Conta recebida e mesa liberada.'
+        : 'Conta recebida e mesa enviada para limpeza.',
     );
   };
 
@@ -243,12 +240,12 @@ export default function App() {
     items: Array<{ menuItemId: string; quantity: number; notes?: string }>;
   }) => {
     await apiMutate('/api/pos/sale', 'POST', payload);
-    showToast('Venda registrada no PDV.');
+    showToast('Venda registrada.');
   };
 
   const handleCreateDish = async (payload: Omit<MenuItem, 'id' | 'sku'>) => {
     await apiMutate('/api/menu', 'POST', payload);
-    showToast('Prato cadastrado no cardápio.');
+    showToast('Item adicionado ao cardápio.');
   };
 
   const handleUpdateDish = async (id: string, payload: Partial<MenuItem>) => {
@@ -263,7 +260,7 @@ export default function App() {
 
   const handleCreateReservation = async (payload: Omit<Reservation, 'id' | 'status'>) => {
     await apiMutate('/api/reservations', 'POST', payload);
-    showToast('Reserva agendada.');
+    showToast('Reserva registrada.');
   };
 
   const handleUpdateReservation = async (
@@ -282,7 +279,7 @@ export default function App() {
 
   const handleDeleteReservation = async (id: string) => {
     await apiMutate(`/api/reservations/${id}`, 'DELETE');
-    showToast('Reserva removida da agenda.');
+    showToast('Reserva removida.');
   };
 
   const handleAdjustStock = async (id: string, delta: number) => {
@@ -293,22 +290,22 @@ export default function App() {
     payload: Omit<InventoryItem, 'id' | 'updatedAt'>,
   ) => {
     await apiMutate('/api/inventory', 'POST', payload);
-    showToast('Insumo adicionado ao estoque.');
+    showToast('Insumo cadastrado.');
   };
 
   const handleCreateStaffMember = async (payload: Omit<StaffMember, 'id'>) => {
     await apiMutate('/api/staff', 'POST', payload);
-    showToast('Integrante adicionado à equipe.');
+    showToast('Colaborador adicionado.');
   };
 
   const handleUpdateStaffMember = async (id: string, payload: Partial<StaffMember>) => {
     await apiMutate(`/api/staff/${id}`, 'PATCH', payload);
-    showToast('Dados da equipe atualizados.');
+    showToast('Cadastro atualizado.');
   };
 
   const handleDeleteStaffMember = async (id: string) => {
     await apiMutate(`/api/staff/${id}`, 'DELETE');
-    showToast('Integrante removido da equipe.');
+    showToast('Colaborador removido.');
   };
 
   const handleUpdateRolePermissions = async (role: StaffRole, modules: NavSection[]) => {
@@ -339,7 +336,7 @@ export default function App() {
     setActiveOperatorId(data.operator.id);
     setTerminalLocked(false);
     setActiveNav('overview');
-    showToast(`Cadastro concluído! Bem-vindo(a), ${data.operator.name}.`);
+    showToast(`Bem-vindo, ${data.operator.name}.`);
   };
 
   const handleOpenCashRegister = async (payload: {
@@ -348,7 +345,7 @@ export default function App() {
     openingNotes?: string;
   }) => {
     await apiMutate('/api/cash/open', 'POST', payload);
-    showToast('Caixa aberto para o turno.');
+    showToast('Caixa aberto.');
   };
 
   const handleCashMovement = async (payload: {
@@ -358,11 +355,7 @@ export default function App() {
     operatorName: string;
   }) => {
     await apiMutate('/api/cash/movement', 'POST', payload);
-    showToast(
-      payload.type === 'suprimento'
-        ? 'Suprimento registrado no caixa.'
-        : 'Sangria registrada no caixa.',
-    );
+    showToast(payload.type === 'suprimento' ? 'Suprimento lançado.' : 'Sangria lançada.');
   };
 
   const handleCloseCashRegister = async (payload: {
@@ -371,7 +364,7 @@ export default function App() {
     closingNotes?: string;
   }) => {
     await apiMutate('/api/cash/close', 'POST', payload);
-    showToast('Caixa fechado e conferência registrada.');
+    showToast('Caixa fechado.');
   };
 
   const handleResetSystem = async () => {
@@ -379,7 +372,7 @@ export default function App() {
     setSelectedTableId(null);
     setActiveNav('overview');
     setTerminalLocked(true);
-    showToast('Sistema limpo com sucesso.');
+    showToast('Dados do sistema apagados.');
   };
 
   const handleLockTerminal = async (preselectedStaffId?: string) => {
@@ -423,14 +416,14 @@ export default function App() {
     if (!allowed.includes(activeNav)) {
       setActiveNav(allowed[0] || 'overview');
     }
-    showToast(`Sessão iniciada como ${data.operator.name} (${data.operator.role}).`);
+    showToast(`${data.operator.name} (${data.operator.role})`);
   };
 
   const openManagerModal = () => {
     const profile = state?.managerProfile || {
       name: 'Gerente Geral',
       role: 'Gerente Geral',
-      email: 'galvaojvitor04@gmail.com',
+      email: '',
     };
     setManagerNameInput(profile.name);
     setManagerEmailInput(profile.email);
@@ -447,7 +440,7 @@ export default function App() {
         email: managerEmailInput.trim(),
       });
       setManagerModalOpen(false);
-      showToast('Perfil de Gerente Geral atualizado.');
+      showToast('Perfil atualizado.');
     } finally {
       setSavingManager(false);
     }
@@ -489,7 +482,7 @@ export default function App() {
       shiftLabel: '10:00 – 19:00',
       status: 'em_turno',
       phone: '',
-      email: state?.managerProfile?.email || 'galvaojvitor04@gmail.com',
+      email: state?.managerProfile?.email || '',
     };
 
   const allowedModules: NavSection[] =
@@ -521,22 +514,22 @@ export default function App() {
   }
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 w-64">
-      <div className="h-16 px-6 flex items-center justify-between border-b border-slate-200">
-        <span className="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap">
+    <div className="flex flex-col h-full bg-white border-r border-stone-200 w-60">
+      <div className="h-15 px-5 flex items-center justify-between border-b border-stone-200">
+        <span className="font-display text-base font-bold tracking-tight text-stone-900 whitespace-nowrap">
           Comanda & Co.
         </span>
         <button
           type="button"
           onClick={() => setMobileMenuOpen(false)}
-          className="lg:hidden p-1.5 text-slate-500 hover:text-slate-900 rounded-lg"
+          className="lg:hidden p-1.5 text-stone-500 hover:text-stone-900 rounded-md"
           aria-label="Fechar menu"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {visibleNavItems.map(({ id, label, Icon }) => {
           const isActive = activeNav === id;
           let countHint: number | null = null;
@@ -552,20 +545,20 @@ export default function App() {
                 setActiveNav(id);
                 setMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+              className={`w-full flex items-center justify-between px-3 py-2 text-[13px] font-medium rounded-md transition-colors whitespace-nowrap ${
                 isActive
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-stone-900 text-white'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
               }`}
             >
-              <span className="flex items-center gap-3">
+              <span className="flex items-center gap-2.5">
                 <Icon className="w-4 h-4 shrink-0" />
                 <span>{label}</span>
               </span>
               {countHint !== null && (
                 <span
                   className={`font-mono text-xs tabular-nums ${
-                    isActive ? 'text-slate-300' : 'text-slate-500'
+                    isActive ? 'text-stone-300' : 'text-stone-500'
                   }`}
                 >
                   {countHint}
@@ -576,19 +569,15 @@ export default function App() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-200 space-y-3">
+      <div className="p-4 border-t border-stone-200 space-y-2.5">
         <button
           type="button"
           onClick={currentOperator.id === 's1' ? openManagerModal : () => handleLockTerminal()}
-          className="w-full flex items-center justify-between gap-2.5 p-1.5 -m-1.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
-          title={
-            currentOperator.id === 's1'
-              ? 'Editar perfil do Gerente Geral'
-              : 'Trocar operador'
-          }
+          className="w-full flex items-center justify-between gap-2.5 p-1.5 -m-1.5 rounded-md hover:bg-stone-50 transition-colors text-left"
+          title={currentOperator.id === 's1' ? 'Editar perfil' : 'Trocar operador'}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-teal-700 text-white font-display text-xs font-semibold flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-md bg-emerald-800 text-white font-display text-xs font-semibold flex items-center justify-center shrink-0">
               {currentOperator.name
                 .trim()
                 .split(/\s+/)
@@ -598,10 +587,10 @@ export default function App() {
                 .toUpperCase()}
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-medium text-slate-900 truncate">
+              <div className="text-sm font-medium text-stone-900 truncate">
                 {currentOperator.name}
               </div>
-              <div className="text-xs text-slate-500 truncate">
+              <div className="text-xs text-stone-500 truncate">
                 {currentOperator.id === 's1'
                   ? state?.managerProfile?.role || 'Gerente Geral'
                   : currentOperator.role}
@@ -609,65 +598,57 @@ export default function App() {
             </div>
           </div>
           {currentOperator.id === 's1' && (
-            <Pencil className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <Pencil className="w-3.5 h-3.5 text-stone-400 shrink-0" />
           )}
         </button>
 
         <button
           type="button"
           onClick={() => handleLockTerminal()}
-          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap"
+          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-md transition-colors whitespace-nowrap"
         >
           <LogOut className="w-3.5 h-3.5" />
-          Trocar Operador / Bloquear
+          Trocar Operador
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen flex bg-slate-50 text-slate-900">
-      {/* Desktop Sidebar */}
+    <div className="min-h-screen flex bg-stone-50 text-stone-900">
       <aside className="hidden lg:block shrink-0 sticky top-0 h-screen">
         {sidebarContent}
       </aside>
 
-      {/* Mobile Sidebar Drawer */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex bg-slate-900/40">
+        <div className="fixed inset-0 z-50 lg:hidden flex bg-stone-950/40">
           {sidebarContent}
           <div className="flex-1" onClick={() => setMobileMenuOpen(false)} />
         </div>
       )}
 
-      {/* Main Content Area */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top Workspace Header */}
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-30 h-15 bg-white border-b border-stone-200 px-4 sm:px-7 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Abrir navegação"
-              className="lg:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-lg"
+              className="lg:hidden p-2 -ml-2 text-stone-600 hover:text-stone-900 rounded-md"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2 text-sm truncate">
-              <span className="text-slate-400 hidden sm:inline">Operação</span>
-              <span className="text-slate-300 hidden sm:inline">/</span>
-              <h1 className="font-display font-semibold text-slate-900 truncate">
-                {SECTION_TITLE[activeNav]}
-              </h1>
-            </div>
+            <h1 className="font-display text-base font-semibold text-stone-900 truncate">
+              {SECTION_TITLE[activeNav]}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <PWAInstallButton />
             <button
               type="button"
               onClick={() => openNewOrderForTable(null)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-emerald-800 hover:bg-emerald-900 rounded-md transition-colors whitespace-nowrap shrink-0"
             >
               <Plus className="w-4 h-4" />
               Novo Pedido
@@ -675,22 +656,13 @@ export default function App() {
           </div>
         </header>
 
-        {/* Viewport Body */}
-        <main className="flex-1 p-4 sm:p-8 max-w-[1440px] w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-7 max-w-[1440px] w-full mx-auto">
           {loading ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((n) => (
-                  <div
-                    key={n}
-                    className="h-28 bg-white border border-slate-200 rounded-xl animate-pulse"
-                  />
-                ))}
-              </div>
-              <div className="h-96 bg-white border border-slate-200 rounded-xl animate-pulse" />
+            <div className="bg-white border border-stone-200 rounded-lg p-12 text-center text-sm text-stone-500">
+              Carregando sistema...
             </div>
           ) : error || !state ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+            <div className="bg-white border border-stone-200 rounded-lg p-10 text-center">
               <p className="text-sm font-medium text-red-600">
                 {error || 'Não foi possível carregar os dados.'}
               </p>
@@ -700,7 +672,7 @@ export default function App() {
                   setLoading(true);
                   void fetchState();
                 }}
-                className="mt-4 px-4 py-2 text-xs font-medium text-white bg-slate-900 rounded-lg"
+                className="mt-4 px-4 py-2 text-xs font-medium text-white bg-stone-900 rounded-md"
               >
                 Tentar novamente
               </button>
@@ -723,6 +695,7 @@ export default function App() {
               {activeNav === 'pdv' && (
                 <PosView
                   state={state}
+                  operatorName={currentOperator.name}
                   onDirectSale={handleDirectPosSale}
                   onSendToTable={handleSubmitOrder}
                   onCloseTableBill={handleCloseBill}
@@ -820,12 +793,12 @@ export default function App() {
         </main>
       </div>
 
-      {/* Table Side Drawer */}
       {state && (
         <TableDrawer
           tableId={selectedTableId}
           state={state}
           nowMs={nowMs}
+          operatorName={currentOperator.name}
           onClose={() => setSelectedTableId(null)}
           onOpenOrderComposer={(tableId) => openNewOrderForTable(tableId)}
           onEditOrder={openEditOrder}
@@ -837,13 +810,13 @@ export default function App() {
         />
       )}
 
-      {/* POS Order Composer / Editor Modal */}
       {state && (
         <OrderComposerModal
           open={orderModalOpen}
           initialTableId={orderModalTableId}
           editingOrder={editingOrder}
           state={state}
+          operatorName={currentOperator.name}
           onClose={() => {
             setOrderModalOpen(false);
             setEditingOrder(null);
@@ -854,75 +827,63 @@ export default function App() {
         />
       )}
 
-      {/* General Manager Profile Modal */}
-      {managerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px]">
-          <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900">
-                Perfil do Gerente Geral
-              </h3>
-              <button
-                type="button"
-                onClick={() => setManagerModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveManagerProfile} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Seu nome de exibição
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={managerNameInput}
-                  onChange={(e) => setManagerNameInput(e.target.value)}
-                  placeholder="Ex: João Vitor"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  E-mail
-                </label>
-                <input
-                  type="email"
-                  value={managerEmailInput}
-                  onChange={(e) => setManagerEmailInput(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-700"
-                />
-              </div>
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setManagerModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingManager}
-                  className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50"
-                >
-                  {savingManager ? 'Salvando...' : 'Salvar Perfil'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={managerModalOpen}
+        onClose={() => setManagerModalOpen(false)}
+        title="Perfil do Gerente Geral"
+        maxWidthClass="max-w-sm"
+      >
+        <form onSubmit={handleSaveManagerProfile} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-stone-700 mb-1">
+              Nome de exibição
+            </label>
+            <input
+              type="text"
+              required
+              value={managerNameInput}
+              onChange={(e) => setManagerNameInput(e.target.value)}
+              placeholder="Ex: João Vitor"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-xs font-medium text-stone-700 mb-1">
+              E-mail
+            </label>
+            <input
+              type="email"
+              value={managerEmailInput}
+              onChange={(e) => setManagerEmailInput(e.target.value)}
+              placeholder="gerencia@restaurante.com.br"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-800"
+            />
+          </div>
+          <div className="pt-3 border-t border-stone-200 flex justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setManagerModalOpen(false)}
+              className="px-4 py-2 text-xs font-medium text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 rounded-md"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={savingManager}
+              className="px-4 py-2 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-md disabled:opacity-50"
+            >
+              {savingManager ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <OfflineIndicator />
 
-      {/* Subtle Action Toast */}
       {toast && (
         <div
           role="status"
-          className="fixed bottom-5 right-5 z-50 px-4 py-2.5 text-xs font-medium text-white bg-slate-900 rounded-lg shadow-lg"
+          className="fixed bottom-5 right-5 z-50 px-4 py-2.5 text-xs font-medium text-white bg-stone-900 border border-stone-700 rounded-md"
         >
           {toast}
         </div>
